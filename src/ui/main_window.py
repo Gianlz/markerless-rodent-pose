@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget
 from PySide6.QtCore import Qt
 
-from .tabs import ProjectTab, ExtractTab, OutlierTab, LabelTab
+from .tabs import ProjectTab, ExtractTab, OutlierTab, LabelTab, TrainingTab, TrainTab
 
 
 class MainWindow(QMainWindow):
@@ -30,11 +30,15 @@ class MainWindow(QMainWindow):
         self.project_tab = ProjectTab()
         self.extract_tab = ExtractTab()
         self.label_tab = LabelTab()
+        self.training_tab = TrainingTab()
+        self.train_tab = TrainTab()
         self.outlier_tab = OutlierTab()
         
         tabs.addTab(self.project_tab, "Project Manager")
         tabs.addTab(self.extract_tab, "Extract Frames")
         tabs.addTab(self.label_tab, "Label Frames")
+        tabs.addTab(self.training_tab, "Create Training Dataset")
+        tabs.addTab(self.train_tab, "Train Network")
         tabs.addTab(self.outlier_tab, "Extract Outliers")
         
         # Connect project creation to auto-fill config
@@ -48,4 +52,6 @@ class MainWindow(QMainWindow):
         if config_path:
             self.extract_tab.set_config_path(config_path)
             self.label_tab.set_config_path(config_path)
+            self.training_tab.set_config_path(config_path)
+            self.train_tab.set_config_path(config_path)
             self.outlier_tab.set_config_path(config_path)
