@@ -64,14 +64,19 @@ class TrainManager:
         
         print("="*60 + "\n")
         
+        # For PyTorch, use epochs instead of maxiters
+        # Convert maxiters to epochs (rough approximation)
+        epochs = maxiters
+        save_epochs = saveiters
+        
         deeplabcut.train_network(
             config,
             shuffle=shuffle,
             trainingsetindex=trainingsetindex,
             max_snapshots_to_keep=max_snapshots_to_keep,
             displayiters=displayiters,
-            saveiters=saveiters,
-            maxiters=maxiters,
+            save_epochs=save_epochs,
+            epochs=epochs,
             allow_growth=allow_growth,
             gputouse=gputouse
         )
