@@ -105,19 +105,18 @@ class ExtractTab(QWidget):
         settings_layout.addWidget(cluster_width_label, 1, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         settings_layout.addWidget(self.cluster_width_spin, 1, 3)
         
-        # Checkboxes
-        checkbox_layout = QHBoxLayout()
-        checkbox_layout.setSpacing(16)
-        self.crop_check = QCheckBox("Crop")
-        self.opencv_check = QCheckBox("Use OpenCV")
-        self.opencv_check.setChecked(True)
-        self.cluster_color_check = QCheckBox("Cluster Color")
-        checkbox_layout.addWidget(self.crop_check)
-        checkbox_layout.addWidget(self.opencv_check)
-        checkbox_layout.addWidget(self.cluster_color_check)
-        checkbox_layout.addStretch()
+        # Number of frames
+        num_frames_label = QLabel("Num Frames:")
+        num_frames_label.setFixedWidth(80)
+        self.num_frames_spin = QSpinBox()
+        self.num_frames_spin.setRange(5, 500)
+        self.num_frames_spin.setValue(20)
+        settings_layout.addWidget(num_frames_label, 2, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        settings_layout.addWidget(self.num_frames_spin, 2, 1)
         
-        settings_layout.addLayout(checkbox_layout, 2, 0, 1, 4)
+        # Checkboxes
+        self.cluster_color_check = QCheckBox("Use Color Features")
+        settings_layout.addWidget(self.cluster_color_check, 2, 2, 1, 2)
         
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
@@ -160,11 +159,10 @@ class ExtractTab(QWidget):
             'config': config,
             'mode': self.mode_combo.currentText(),
             'algo': self.algo_combo.currentText(),
-            'crop': self.crop_check.isChecked(),
+            'num_frames': self.num_frames_spin.value(),
             'cluster_step': self.cluster_step_spin.value(),
             'cluster_resize_width': self.cluster_width_spin.value(),
-            'cluster_color': self.cluster_color_check.isChecked(),
-            'opencv': self.opencv_check.isChecked()
+            'cluster_color': self.cluster_color_check.isChecked()
         }
         
         self.worker = ExtractionWorker(self.extractor, **kwargs)
