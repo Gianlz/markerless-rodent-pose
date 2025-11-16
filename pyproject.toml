@@ -14,3 +14,10 @@ dependencies = [
     "torch>=2.9.1",
     "torchvision>=0.24.1",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
+    "pytest-qt>=4.5.0",
+]
