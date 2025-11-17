@@ -100,6 +100,7 @@ class TrainingTab(QWidget):
         aug_label.setFixedWidth(120)
         self.aug_combo = QComboBox()
         self.aug_combo.addItems(self.manager.get_available_augmenters())
+        self.aug_combo.currentTextChanged.connect(self.save_settings)
         settings_layout.addWidget(aug_label, 2, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         settings_layout.addWidget(self.aug_combo, 2, 1, 1, 3)
         
@@ -107,7 +108,8 @@ class TrainingTab(QWidget):
         weight_label = QLabel("Weight Init:")
         weight_label.setFixedWidth(120)
         self.weight_combo = QComboBox()
-        self.weight_combo.addItems(['Transfer Learning - SuperAnimal TopViewMouse', 'Transfer Learning - ImageNet', 'Random Initialization'])
+        self.weight_combo.addItems(self.manager.get_available_weight_init())
+        self.weight_combo.currentTextChanged.connect(self.save_settings)
         settings_layout.addWidget(weight_label, 3, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         settings_layout.addWidget(self.weight_combo, 3, 1, 1, 3)
         
@@ -250,3 +252,23 @@ class TrainingTab(QWidget):
         self.create_btn.setEnabled(True)
         self.status_text.setPlainText(f"Error: {error}")
         QMessageBox.critical(self, "Error", f"Failed to create training dataset:\n{error}")
+
+    def save_settings(self):
+        """Save current settings"""
+        self.settings.setValue('network', self.net_combo.currentText())
+        self.settings.setValue('augmentation', self.aug_combo.currentText())
+        self.settings.setValue('weight_init', self.weight_combo.currentText())
+    
+    def load_settings(self):
+        """Load saved settings"""
+        augmentation = self.settings.value('augmentation', 'default')
+        if augmentation:
+            index = self.aug_combo.findText(augmentation)
+            if index >= 0:
+                self.aug_combo.setCurrentIndex(index)
+        
+        weight_init = self.settings.value('weight_init', 'Transfer Learning - SuperAnimal TopViewMouse')
+        if weight_init:
+            index = self.weight_combo.findText(weight_init)
+            if index >= 0:
+                self.weight_combo.setCurrentIndex(index)

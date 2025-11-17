@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import Optional
 import logging
+import json
 import deeplabcut
 import yaml
 
@@ -10,6 +11,43 @@ logger = logging.getLogger(__name__)
 
 class TrainingManager:
     """Handles training dataset creation and management"""
+    
+    def __init__(self):
+        """Initialize training manager and load model config"""
+        self.config_path = Path(__file__).parent.parent.parent / 'config' / 'models.json'
+        self.models_config = self._load_models_config()
+    
+    def _load_models_config(self) -> dict:
+        """Load models configuration from JSON file"""
+        try:
+            if self.config_path.exists():
+                with open(self.config_path, 'r') as f:
+                    return json.load(f)
+            else:
+                logger.warning(f"Models config not found at {self.config_path}, using defaults")
+                return self._get_default_config()
+        except Exception as e:
+            logger.error(f"Error loading models config: {e}, using defaults")
+            return self._get_default_config()
+    
+    def _get_default_config(self) -> dict:
+        """Get default configuration if JSON file is not available"""
+        return {
+            "networks": {
+                "single_animal": ["resnet_50", "resnet_101", "resnet_152"],
+                "multi_animal": ["dlcrnet_ms5", "efficientnet-b0"]
+            },
+            "augmenters": ["default", "imgaug"],
+            "weight_init": [
+                "Transfer Learning - SuperAnimal TopViewMouse",
+                "Transfer Learning - ImageNet",
+                "Random Initialization"
+            ]
+        }
+    
+    def reload_config(self):
+        """Reload models configuration from JSON file"""
+        self.models_config = self._load_models_config()
     
     def create_training_dataset(
         self,
@@ -130,39 +168,17 @@ class TrainingManager:
         logger.info(f"Updated config: net_type={net_type}, init_weights={init_weights}")
     
     def get_available_networks(self, multianimal: bool = False) -> list[str]:
-        """Get list of available network architectures"""
-        if multianimal:
-            return [
-                'dlcrnet_ms5',
-                'efficientnet-b0',
-                'efficientnet-b1',
-                'efficientnet-b2',
-                'efficientnet-b3',
-                'efficientnet-b4',
-                'efficientnet-b5',
-                'efficientnet-b6'
-            ]
-        else:
-            return [
-                'resnet_50',
-                'resnet_101',
-                'resnet_152',
-                'mobilenet_v2_1.0',
-                'mobilenet_v2_0.75',
-                'mobilenet_v2_0.5',
-                'mobilenet_v2_0.35',
-                'efficientnet-b0',
-                'efficientnet-b1',
-                'efficientnet-b2',
-                'efficientnet-b3',
-                'efficientnet-b4',
-                'efficientnet-b5',
-                'efficientnet-b6'
-            ]
+        """Get list of available network architectures from config"""
+        key = 'multi_animal' if multianimal else 'single_animal'
+        return self.models_config.get('networks', {}).get(key, ['resnet_50'])
     
     def get_available_augmenters(self) -> list[str]:
-        """Get list of available augmentation methods"""
-        return ['default', 'imgaug', 'albumentations', 'tensorpack', 'deterministic']
+        """Get list of available augmentation methods from config"""
+        return self.models_config.get('augmenters', ['default'])
+    
+    def get_available_weight_init(self) -> list[str]:
+        """Get list of available weight initialization options from config"""
+        return self.models_config.get('weight_init', ['Transfer Learning - ImageNet'])
     
     def is_multianimal_project(self, config: str) -> bool:
         """Check if project is multi-animal"""

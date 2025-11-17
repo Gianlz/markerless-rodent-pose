@@ -1,0 +1,42 @@
+{
+  "networks": {
+    "single_animal": [
+      "resnet_50",
+      "resnet_101",
+      "resnet_152",
+      "mobilenet_v2_1.0",
+      "mobilenet_v2_0.75",
+      "mobilenet_v2_0.5",
+      "mobilenet_v2_0.35",
+      "efficientnet-b0",
+      "efficientnet-b1",
+      "efficientnet-b2",
+      "efficientnet-b3",
+      "efficientnet-b4",
+      "efficientnet-b5",
+      "efficientnet-b6"
+    ],
+    "multi_animal": [
+      "dlcrnet_ms5",
+      "efficientnet-b0",
+      "efficientnet-b1",
+      "efficientnet-b2",
+      "efficientnet-b3",
+      "efficientnet-b4",
+      "efficientnet-b5",
+      "efficientnet-b6"
+    ]
+  },
+  "augmenters": [
+    "default",
+    "imgaug",
+    "albumentations",
+    "tensorpack",
+    "deterministic"
+  ],
+  "weight_init": [
+    "Transfer Learning - SuperAnimal TopViewMouse",
+    "Transfer Learning - ImageNet",
+    "Random Initialization"
+  ]
+}
