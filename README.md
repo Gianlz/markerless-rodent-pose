@@ -353,15 +353,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Documentation**: See `docs/` folder
 - **DeepLabCut Docs**: [deeplabcut.github.io](https://deeplabcut.github.io)
 
-## Roadmap
-
-- [ ] Real-time pose estimation
-- [ ] 3D pose reconstruction
-- [ ] Behavior classification
-- [ ] Multi-camera support
-- [ ] Cloud training integration
-- [ ] Model zoo browser
-- [ ] Automated hyperparameter tuning
 
 ## Authors
 
