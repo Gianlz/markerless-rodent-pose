@@ -315,7 +315,7 @@ If you use this software in your research, please cite:
 ```bibtex
 @software{deeplabcut_gui,
   title = {DeepLabCut GUI - Markerless Rodent Pose Estimation},
-  author = {Your Name},
+  author = {Zugno, Gianluca},
   year = {2024},
   url = {https://github.com/Gianlz/markerless-rodent-pose}
 }
