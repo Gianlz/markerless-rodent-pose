@@ -2,7 +2,10 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget
 from PySide6.QtCore import Qt
 
-from .tabs import CleanVideoTab, ProjectTab, ExtractTab, OutlierTab, LabelTab, TrainingTab, TrainTab, InferenceTab
+from .tabs import (
+    CleanVideoTab, ProjectTab, ExtractTab, OutlierTab, 
+    LabelTab, TrainingTab, TrainTab, InferenceTab, SystemInfoTab
+)
 
 
 class MainWindow(QMainWindow):
@@ -35,6 +38,7 @@ class MainWindow(QMainWindow):
         self.train_tab = TrainTab()
         self.inference_tab = InferenceTab()
         self.outlier_tab = OutlierTab()
+        self.system_info_tab = SystemInfoTab()
         
         tabs.addTab(self.clean_video_tab, "Clean Videos")
         tabs.addTab(self.project_tab, "Project Manager")
@@ -44,6 +48,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.train_tab, "Train Network")
         tabs.addTab(self.inference_tab, "Analyze Videos")
         tabs.addTab(self.outlier_tab, "Extract Outliers")
+        tabs.addTab(self.system_info_tab, "System Info")
         
         # Connect project creation to auto-fill config
         tabs.currentChanged.connect(self.on_tab_changed)

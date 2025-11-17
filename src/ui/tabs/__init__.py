@@ -7,5 +7,6 @@ from .label_tab import LabelTab
 from .training_tab import TrainingTab
 from .train_tab import TrainTab
 from .inference_tab import InferenceTab
+from .system_info_tab import SystemInfoTab
 
-__all__ = ['CleanVideoTab', 'ProjectTab', 'ExtractTab', 'OutlierTab', 'LabelTab', 'TrainingTab', 'TrainTab', 'InferenceTab']
+__all__ = ['CleanVideoTab', 'ProjectTab', 'ExtractTab', 'OutlierTab', 'LabelTab', 'TrainingTab', 'TrainTab', 'InferenceTab', 'SystemInfoTab']
