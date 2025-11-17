@@ -1,9 +1,11 @@
 """DeepLabCut model training management"""
 from pathlib import Path
 from typing import Optional
+import logging
 import deeplabcut
 import yaml
-import os
+
+logger = logging.getLogger(__name__)
 
 
 class TrainManager:
@@ -35,37 +37,30 @@ class TrainManager:
             allow_growth: Allow GPU memory growth
             gputouse: GPU device to use (None for default)
         """
-        # Log training configuration
         with open(config, 'r') as f:
             cfg = yaml.safe_load(f)
         
         init_weights = cfg.get('init_weights', 'imagenet')
         net_type = cfg.get('net_type', 'resnet_50')
         
-        print("\n" + "="*60)
-        print("STARTING TRAINING")
-        print("="*60)
-        print(f"Network: {net_type}")
-        print(f"Init Weights: {init_weights}")
-        print(f"Shuffle: {shuffle}")
-        print(f"Max Iterations: {maxiters}")
-        print(f"Display Iterations: {displayiters}")
-        print(f"Save Iterations: {saveiters}")
-        print(f"Snapshots to Keep: {max_snapshots_to_keep}")
+        logger.info("="*60)
+        logger.info("STARTING TRAINING")
+        logger.info("="*60)
+        logger.info(f"Network: {net_type}")
+        logger.info(f"Init Weights: {init_weights}")
+        logger.info(f"Shuffle: {shuffle}")
+        logger.info(f"Max Iterations: {maxiters}")
+        logger.info(f"Display Iterations: {displayiters}")
+        logger.info(f"Save Iterations: {saveiters}")
+        logger.info(f"Snapshots to Keep: {max_snapshots_to_keep}")
         
-        # Handle SuperAnimal weights
         if init_weights == 'superanimal':
-            print("\n" + "!"*60)
-            print("WARNING: SuperAnimal weights must be set during dataset creation!")
-            print("If you created the training dataset with ImageNet weights,")
-            print("you need to recreate it with SuperAnimal weights selected.")
-            print("Go back to 'Create Training Dataset' tab and recreate the dataset.")
-            print("!"*60)
+            logger.warning("SuperAnimal weights must be set during dataset creation!")
+            logger.warning("If you created the training dataset with ImageNet weights,")
+            logger.warning("you need to recreate it with SuperAnimal weights selected.")
         
-        print("="*60 + "\n")
+        logger.info("="*60)
         
-        # For PyTorch, use epochs instead of maxiters
-        # Convert maxiters to epochs (rough approximation)
         epochs = maxiters
         save_epochs = saveiters
         

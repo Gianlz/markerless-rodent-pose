@@ -1,4 +1,4 @@
-"""Frame extraction using FAISS K-means clustering (fixed: sequential read, CPU for small datasets)"""
+"""Frame extraction using FAISS K-means clustering"""
 from pathlib import Path
 from typing import Optional, Literal
 import logging
@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import yaml
 import deeplabcut
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 logger = logging.getLogger(__name__)
 
 try:

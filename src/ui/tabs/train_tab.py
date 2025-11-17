@@ -201,19 +201,15 @@ class TrainTab(QWidget):
         try:
             import yaml
             
-            # Read config file directly
             with open(config, 'r') as f:
                 cfg = yaml.safe_load(f)
             
-            # Get actual values from config
             net_type = cfg.get('net_type', 'resnet_50')
             init_weights = cfg.get('init_weights', 'imagenet')
             multianimal = cfg.get('multianimalproject', False)
             
-            # Check if training dataset exists
             info = self.manager.get_training_info(config)
             
-            # Display actual config values
             text = f"Network: {net_type} | Engine: pytorch\n"
             text += f"Init Weights: {init_weights}\n"
             text += f"Project Type: {'Multi-animal' if multianimal else 'Single-animal'}\n"
@@ -236,7 +232,6 @@ class TrainTab(QWidget):
             self.shuffle_combo.clear()
             self.shuffle_combo.addItems([str(s) for s in shuffles])
             
-            # Update snapshots when shuffle changes
             self.shuffle_combo.currentTextChanged.connect(self.load_snapshots)
         except Exception as e:
             pass

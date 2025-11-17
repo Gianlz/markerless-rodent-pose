@@ -1,8 +1,11 @@
 """DeepLabCut training dataset management"""
 from pathlib import Path
 from typing import Optional
+import logging
 import deeplabcut
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingManager:
@@ -26,25 +29,23 @@ class TrainingManager:
             augmenter_type: Data augmentation method
             init_weights: Weight initialization ('imagenet', 'superanimal', 'random')
         """
-        # Handle SuperAnimal weights
         weight_init = None
         if init_weights == 'superanimal':
             try:
                 from deeplabcut.modelzoo import build_weight_init
                 from deeplabcut import auxiliaryfunctions
                 
-                print("[TrainingManager] Building SuperAnimal TopViewMouse weight initialization...")
+                logger.info("Building SuperAnimal TopViewMouse weight initialization...")
                 cfg = auxiliaryfunctions.read_config(config)
                 
-                # Map net_type to valid model names
                 model_name_map = {
                     'resnet_50': 'resnet_50',
-                    'resnet_101': 'resnet_50',  # fallback
-                    'resnet_152': 'resnet_50',  # fallback
+                    'resnet_101': 'resnet_50',
+                    'resnet_152': 'resnet_50',
                     'hrnet_w32': 'hrnet_w32',
-                    'mobilenet_v2_1.0': 'resnet_50',  # fallback
-                    'mobilenet_v2_0.75': 'resnet_50',  # fallback
-                    'efficientnet-b0': 'resnet_50',  # fallback
+                    'mobilenet_v2_1.0': 'resnet_50',
+                    'mobilenet_v2_0.75': 'resnet_50',
+                    'efficientnet-b0': 'resnet_50',
                 }
                 
                 model_name = model_name_map.get(net_type, 'hrnet_w32')
@@ -54,12 +55,12 @@ class TrainingManager:
                     super_animal='superanimal_topviewmouse',
                     model_name=model_name,
                     detector_name='fasterrcnn_resnet50_fpn_v2',
-                    with_decoder=False  # Transfer learning without decoder
+                    with_decoder=False
                 )
-                print(f"[TrainingManager] SuperAnimal weights configured: model={model_name}")
+                logger.info(f"SuperAnimal weights configured: model={model_name}")
             except Exception as e:
-                print(f"[TrainingManager] Warning: Could not build SuperAnimal weights: {e}")
-                print("[TrainingManager] Falling back to ImageNet weights")
+                logger.warning(f"Could not build SuperAnimal weights: {e}")
+                logger.info("Falling back to ImageNet weights")
                 weight_init = None
         
         # Create training dataset
@@ -79,26 +80,18 @@ class TrainingManager:
                 augmenter_type=augmenter_type
             )
         
-        # Update config with training parameters after creation
         with open(config, 'r') as f:
             cfg = yaml.safe_load(f)
         
-        # Set the parameters
         cfg['init_weights'] = init_weights
         cfg['net_type'] = net_type
         if init_weights == 'superanimal':
             cfg['superanimal_name'] = 'superanimal_topviewmouse'
         
-        # Write back with proper formatting
         with open(config, 'w') as f:
             yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
         
-        print(f"[TrainingManager] Updated config: net_type={net_type}, init_weights={init_weights}")
-        
-        # Verify it was written
-        with open(config, 'r') as f:
-            verify_cfg = yaml.safe_load(f)
-        print(f"[TrainingManager] Verified in file: net_type={verify_cfg.get('net_type')}, init_weights={verify_cfg.get('init_weights')}")
+        logger.info(f"Updated config: net_type={net_type}, init_weights={init_weights}")
     
     def create_multianimal_training_dataset(
         self,
@@ -118,7 +111,6 @@ class TrainingManager:
             augmenter_type: Data augmentation method
             init_weights: Weight initialization ('imagenet', 'superanimal', 'random')
         """
-        # Create training dataset first
         deeplabcut.create_multianimaltraining_dataset(
             config,
             num_shuffles=num_shuffles,
@@ -126,25 +118,16 @@ class TrainingManager:
             augmenter_type=augmenter_type
         )
         
-        # Update config with training parameters after creation
-        # (DeepLabCut may overwrite some values during creation)
         with open(config, 'r') as f:
             cfg = yaml.safe_load(f)
         
-        # Set the parameters
         cfg['init_weights'] = init_weights
         cfg['net_type'] = net_type
         
-        # Write back with proper formatting
         with open(config, 'w') as f:
             yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
         
-        print(f"[TrainingManager] Updated config: net_type={net_type}, init_weights={init_weights}")
-        
-        # Verify it was written
-        with open(config, 'r') as f:
-            verify_cfg = yaml.safe_load(f)
-        print(f"[TrainingManager] Verified in file: net_type={verify_cfg.get('net_type')}, init_weights={verify_cfg.get('init_weights')}")
+        logger.info(f"Updated config: net_type={net_type}, init_weights={init_weights}")
     
     def get_available_networks(self, multianimal: bool = False) -> list[str]:
         """Get list of available network architectures"""

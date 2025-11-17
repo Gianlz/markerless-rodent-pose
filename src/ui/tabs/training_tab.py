@@ -216,10 +216,8 @@ class TrainingTab(QWidget):
         self.create_btn.setEnabled(False)
         self.status_text.setPlainText("Creating training dataset...")
         
-        # Determine weight initialization
         weight_choice = self.weight_combo.currentText()
         
-        # Map UI choice to init_weights value
         if 'SuperAnimal' in weight_choice:
             init_weights = 'superanimal'
         elif 'Random' in weight_choice:
@@ -233,9 +231,6 @@ class TrainingTab(QWidget):
             'augmenter_type': self.aug_combo.currentText(),
             'init_weights': init_weights
         }
-        
-        print(f"[TrainingTab] Creating dataset with: {kwargs}")
-        print(f"[TrainingTab] Multi-animal: {self.is_multianimal}")
         
         self.worker = TrainingDatasetWorker(
             self.manager, config, self.is_multianimal, **kwargs

@@ -1,8 +1,11 @@
 """DeepLabCut video inference management"""
 from pathlib import Path
 from typing import Optional
+import logging
 import deeplabcut
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 class InferenceManager:
@@ -40,8 +43,7 @@ class InferenceManager:
             destfolder=destfolder
         )
         
-        # Filter predictions for smoother tracking
-        print("[InferenceManager] Filtering predictions...")
+        logger.info("Filtering predictions...")
         try:
             deeplabcut.filterpredictions(
                 config,
@@ -49,9 +51,9 @@ class InferenceManager:
                 shuffle=shuffle,
                 trainingsetindex=trainingsetindex
             )
-            print("[InferenceManager] Filtering completed")
+            logger.info("Filtering completed")
         except Exception as e:
-            print(f"[InferenceManager] Warning: Could not filter predictions: {e}")
+            logger.warning(f"Could not filter predictions: {e}")
     
     def create_labeled_video(
         self,
@@ -94,55 +96,48 @@ class InferenceManager:
     def get_best_snapshot(self, config: str, shuffle: int = 1) -> Optional[str]:
         """Get path to best snapshot"""
         project_path = Path(config).parent
-        
-        # Check dlc-models-pytorch folder (PyTorch models)
         dlc_models_path = project_path / 'dlc-models-pytorch'
         
-        print(f"[InferenceManager] Looking for models in: {dlc_models_path}")
+        logger.debug(f"Looking for models in: {dlc_models_path}")
         
         if not dlc_models_path.exists():
-            print(f"[InferenceManager] dlc-models-pytorch not found")
+            logger.debug("dlc-models-pytorch not found")
             return None
         
         iterations = list(dlc_models_path.glob('iteration-*'))
-        print(f"[InferenceManager] Found iterations: {[i.name for i in iterations]}")
+        logger.debug(f"Found iterations: {[i.name for i in iterations]}")
         
         if not iterations:
             return None
         
         latest = sorted(iterations)[-1]
         shuffle_folders = list(latest.glob(f'*shuffle{shuffle}*'))
-        print(f"[InferenceManager] Found shuffle folders: {[f.name for f in shuffle_folders]}")
+        logger.debug(f"Found shuffle folders: {[f.name for f in shuffle_folders]}")
         
         if not shuffle_folders:
             return None
         
         train_folder = shuffle_folders[0] / 'train'
-        print(f"[InferenceManager] Train folder: {train_folder}")
         
         if not train_folder.exists():
-            print(f"[InferenceManager] Train folder does not exist")
+            logger.debug("Train folder does not exist")
             return None
         
-        # Look for best snapshot
         best_snapshots = list(train_folder.glob('snapshot-best-*.pt'))
-        print(f"[InferenceManager] Best snapshots: {[s.name for s in best_snapshots]}")
         
         if best_snapshots:
             snapshot = str(sorted(best_snapshots)[-1])
-            print(f"[InferenceManager] Using best snapshot: {snapshot}")
+            logger.info(f"Using best snapshot: {snapshot}")
             return snapshot
         
-        # Fallback to any snapshot
         snapshots = list(train_folder.glob('snapshot-*.pt'))
-        print(f"[InferenceManager] All snapshots: {[s.name for s in snapshots]}")
         
         if snapshots:
             snapshot = str(sorted(snapshots)[-1])
-            print(f"[InferenceManager] Using snapshot: {snapshot}")
+            logger.info(f"Using snapshot: {snapshot}")
             return snapshot
         
-        print(f"[InferenceManager] No snapshots found")
+        logger.debug("No snapshots found")
         return None
     
     def get_bodyparts(self, config: str) -> list[str]:
@@ -154,13 +149,10 @@ class InferenceManager:
     def check_analysis_exists(self, video_path: str, config: str, shuffle: int = 1) -> bool:
         """Check if video has already been analyzed"""
         video_path = Path(video_path)
-        
-        # Look for h5 file with DLC naming pattern
-        # Pattern: videoname + DLC_scorer + .h5
         h5_pattern = f"{video_path.stem}DLC*.h5"
         h5_files = list(video_path.parent.glob(h5_pattern))
         
-        print(f"[InferenceManager] Checking for analysis: {h5_pattern}")
-        print(f"[InferenceManager] Found {len(h5_files)} h5 files")
+        logger.debug(f"Checking for analysis: {h5_pattern}")
+        logger.debug(f"Found {len(h5_files)} h5 files")
         
         return len(h5_files) > 0

@@ -1,4 +1,5 @@
 """Video Inference Tab"""
+from pathlib import Path
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
     QLabel, QLineEdit, QComboBox, QSpinBox, QCheckBox, QListWidget,
@@ -266,9 +267,7 @@ class InferenceTab(QWidget):
             )
             return
         
-        # Check if trying to create video without analysis
         if create_video and not analyze:
-            # Check if videos have been analyzed
             unanalyzed = []
             for video in videos:
                 if not self.manager.check_analysis_exists(video, config):
@@ -295,7 +294,6 @@ class InferenceTab(QWidget):
         
         shuffle = int(self.shuffle_combo.currentText()) if self.shuffle_combo.currentText() else 1
         
-        # Separate kwargs for analyze and create_video
         analyze_kwargs = {
             'shuffle': shuffle,
             'trainingsetindex': 0,
@@ -310,7 +308,6 @@ class InferenceTab(QWidget):
             'trailpoints': self.trail_spin.value()
         }
         
-        # Combine for worker
         kwargs = {**analyze_kwargs, **video_kwargs}
         
         self.worker = InferenceWorker(
@@ -323,7 +320,7 @@ class InferenceTab(QWidget):
     
     def on_progress(self, message: str):
         """Handle progress update"""
-        print(f"[Inference] {message}")
+        pass
     
     def on_finished(self):
         """Handle inference completion"""

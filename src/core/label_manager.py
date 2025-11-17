@@ -105,12 +105,7 @@ class LabelManager:
     
     def check_labels(self, config: str) -> dict:
         """Check labeling status"""
-        import os
-        from pathlib import Path
-        
         try:
-            # DeepLabCut's check_labels prints to console but doesn't return useful data
-            # We'll manually check the labeled-data folder
             with open(config, 'r') as f:
                 cfg = yaml.safe_load(f)
             
