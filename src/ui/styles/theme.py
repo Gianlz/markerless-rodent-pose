@@ -14,6 +14,8 @@ def load_stylesheet() -> str:
 
 # Widget object names for specific styling
 SECONDARY_BUTTON = "secondaryButton"
+DANGER_BUTTON = "dangerButton"
 SUCCESS_LABEL = "successLabel"
 ERROR_LABEL = "errorLabel"
+INFO_LABEL = "infoLabel"
 VIDEO_LIST_LABEL = "videoListLabel"

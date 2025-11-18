@@ -1,15 +1,15 @@
 """Outlier Frame Extraction Tab"""
 from pathlib import Path
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
-    QLabel, QLineEdit, QComboBox, QSpinBox, QCheckBox,
-    QGroupBox, QFileDialog, QMessageBox
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
+    QLabel, QLineEdit, QComboBox, QSpinBox, QCheckBox, QListWidget,
+    QGroupBox, QFileDialog, QMessageBox, QProgressBar, QAbstractItemView
 )
 from PySide6.QtCore import QThread, Signal, Qt
 
 from ...core.frame_extractor import FrameExtractor
 from ...utils.validators import validate_config_path
-from ..styles import SECONDARY_BUTTON, VIDEO_LIST_LABEL
+from ..styles import SECONDARY_BUTTON, INFO_LABEL
 
 
 class OutlierWorker(QThread):
@@ -37,107 +37,103 @@ class OutlierTab(QWidget):
         super().__init__(parent)
         self.extractor = FrameExtractor()
         self.worker = None
-        self.video_paths = []
         self.init_ui()
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(24)
         
-        # Config file
+        # --- Configuration ---
         config_group = QGroupBox("Configuration")
         config_layout = QHBoxLayout()
-        config_layout.setSpacing(4)
-        config_layout.setContentsMargins(8, 8, 8, 8)
+        config_layout.setContentsMargins(16, 24, 16, 16)
         
-        config_label = QLabel("Config:")
-        config_label.setFixedWidth(60)
         self.config_input = QLineEdit()
         self.config_input.setPlaceholderText("Path to config.yaml")
+        
         config_btn = QPushButton("Browse")
         config_btn.setObjectName(SECONDARY_BUTTON)
-        config_btn.setFixedWidth(80)
         config_btn.clicked.connect(self.browse_config)
         
-        config_layout.addWidget(config_label)
+        config_layout.addWidget(QLabel("Config:"))
         config_layout.addWidget(self.config_input)
         config_layout.addWidget(config_btn)
         config_group.setLayout(config_layout)
         layout.addWidget(config_group)
         
-        # Video files
-        video_group = QGroupBox("Videos")
+        # --- Videos ---
+        video_group = QGroupBox("Videos to Scan")
         video_layout = QVBoxLayout()
-        video_layout.setSpacing(6)
-        video_layout.setContentsMargins(8, 8, 8, 8)
+        video_layout.setContentsMargins(16, 24, 16, 16)
+        video_layout.setSpacing(12)
         
-        self.video_list_label = QLabel("No videos added")
-        self.video_list_label.setObjectName(VIDEO_LIST_LABEL)
-        self.video_list_label.setWordWrap(True)
-        self.video_list_label.setFixedHeight(50)
-        video_layout.addWidget(self.video_list_label)
+        self.video_list = QListWidget()
+        self.video_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.video_list.setAlternatingRowColors(True)
+        self.video_list.setMinimumHeight(120)
+        video_layout.addWidget(self.video_list)
         
-        video_btn_layout = QHBoxLayout()
-        video_btn_layout.setSpacing(4)
-        add_video_btn = QPushButton("Add Videos")
-        add_video_btn.setFixedWidth(100)
-        add_video_btn.clicked.connect(self.add_videos)
-        clear_video_btn = QPushButton("Clear")
-        clear_video_btn.setObjectName(SECONDARY_BUTTON)
-        clear_video_btn.setFixedWidth(70)
-        clear_video_btn.clicked.connect(self.clear_videos)
-        video_btn_layout.addWidget(add_video_btn)
-        video_btn_layout.addWidget(clear_video_btn)
-        video_btn_layout.addStretch()
-        video_layout.addLayout(video_btn_layout)
+        btn_layout = QHBoxLayout()
+        add_btn = QPushButton("Add Videos")
+        add_btn.clicked.connect(self.add_videos)
+        
+        remove_btn = QPushButton("Remove Selected")
+        remove_btn.setObjectName(SECONDARY_BUTTON)
+        remove_btn.clicked.connect(self.remove_video)
+        
+        clear_btn = QPushButton("Clear All")
+        clear_btn.setObjectName(SECONDARY_BUTTON)
+        clear_btn.clicked.connect(self.clear_videos)
+        
+        btn_layout.addWidget(add_btn)
+        btn_layout.addWidget(remove_btn)
+        btn_layout.addWidget(clear_btn)
+        btn_layout.addStretch()
+        video_layout.addLayout(btn_layout)
         
         video_group.setLayout(video_layout)
         layout.addWidget(video_group)
         
-        # Outlier settings
-        settings_group = QGroupBox("Outlier Settings")
-        settings_layout = QGridLayout()
-        settings_layout.setSpacing(6)
-        settings_layout.setContentsMargins(8, 8, 8, 8)
-        settings_layout.setColumnStretch(1, 1)
-        settings_layout.setColumnStretch(3, 1)
+        # --- Settings ---
+        settings_group = QGroupBox("Extraction Settings")
+        settings_layout = QFormLayout()
+        settings_layout.setContentsMargins(16, 24, 16, 16)
+        settings_layout.setSpacing(12)
         
-        # Algorithm
-        algo_label = QLabel("Algorithm:")
-        algo_label.setFixedWidth(80)
         self.algo_combo = QComboBox()
         self.algo_combo.addItems(['jump', 'fitting', 'uncertain'])
-        settings_layout.addWidget(algo_label, 0, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.algo_combo, 0, 1)
+        settings_layout.addRow("Algorithm:", self.algo_combo)
         
-        # P-Bound
-        param_label = QLabel("P-Bound (%):")
-        param_label.setFixedWidth(80)
         self.p_bound_spin = QSpinBox()
         self.p_bound_spin.setRange(0, 100)
         self.p_bound_spin.setValue(1)
-        settings_layout.addWidget(param_label, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.p_bound_spin, 0, 3)
+        self.p_bound_spin.setSuffix(" %")
+        settings_layout.addRow("P-Bound:", self.p_bound_spin)
         
-        # Checkboxes
-        checkbox_layout = QHBoxLayout()
-        checkbox_layout.setSpacing(16)
-        self.automatic_check = QCheckBox("Automatic")
+        self.automatic_check = QCheckBox("Automatic Extraction")
+        settings_layout.addRow("", self.automatic_check)
+        
         self.save_frames_check = QCheckBox("Save Frames")
         self.save_frames_check.setChecked(True)
-        checkbox_layout.addWidget(self.automatic_check)
-        checkbox_layout.addWidget(self.save_frames_check)
-        checkbox_layout.addStretch()
-        
-        settings_layout.addLayout(checkbox_layout, 1, 0, 1, 4)
+        settings_layout.addRow("", self.save_frames_check)
         
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         
-        # Extract button
+        # --- Progress ---
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
+        
+        self.status_label = QLabel("Ready")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_label)
+        
+        # --- Action ---
         self.extract_btn = QPushButton("Extract Outlier Frames")
-        self.extract_btn.setFixedHeight(32)
+        self.extract_btn.setMinimumHeight(40)
         self.extract_btn.clicked.connect(self.extract_outliers)
         layout.addWidget(self.extract_btn)
         
@@ -167,23 +163,19 @@ class OutlierTab(QWidget):
             "Video Files (*.mp4 *.avi *.mov *.mkv)"
         )
         if file_paths:
-            self.video_paths.extend(file_paths)
-            self.update_video_list()
+            existing = [self.video_list.item(i).text() for i in range(self.video_list.count())]
+            for path in file_paths:
+                if path not in existing:
+                    self.video_list.addItem(path)
+    
+    def remove_video(self):
+        """Remove selected videos"""
+        for item in self.video_list.selectedItems():
+            self.video_list.takeItem(self.video_list.row(item))
     
     def clear_videos(self):
         """Clear video list"""
-        self.video_paths.clear()
-        self.update_video_list()
-    
-    def update_video_list(self):
-        """Update video list display"""
-        if not self.video_paths:
-            self.video_list_label.setText("No videos added")
-        else:
-            video_names = [Path(v).name for v in self.video_paths]
-            self.video_list_label.setText(
-                f"{len(video_names)} video(s):\n" + "\n".join(video_names)
-            )
+        self.video_list.clear()
     
     def extract_outliers(self):
         """Start outlier extraction"""
@@ -194,15 +186,18 @@ class OutlierTab(QWidget):
             QMessageBox.warning(self, "Validation Error", error)
             return
         
-        if not self.video_paths:
+        if self.video_list.count() == 0:
             QMessageBox.warning(self, "Validation Error", "Please add at least one video")
             return
         
-        self.extract_btn.setEnabled(False)
+        self.set_busy(True)
+        self.status_label.setText("Extracting outliers...")
+        
+        videos = [self.video_list.item(i).text() for i in range(self.video_list.count())]
         
         kwargs = {
             'config': config,
-            'videos': self.video_paths,
+            'videos': videos,
             'outlier_algorithm': self.algo_combo.currentText(),
             'p_bound': self.p_bound_spin.value() / 100.0,
             'automatic': self.automatic_check.isChecked(),
@@ -216,10 +211,20 @@ class OutlierTab(QWidget):
     
     def on_finished(self):
         """Handle extraction completion"""
-        self.extract_btn.setEnabled(True)
+        self.set_busy(False)
+        self.status_label.setText("Completed!")
         QMessageBox.information(self, "Success", "Outlier frame extraction completed")
     
     def on_error(self, error: str):
         """Handle extraction error"""
-        self.extract_btn.setEnabled(True)
+        self.set_busy(False)
+        self.status_label.setText("Error occurred.")
         QMessageBox.critical(self, "Error", f"Extraction failed:\n{error}")
+        
+    def set_busy(self, busy: bool):
+        """Toggle UI"""
+        self.extract_btn.setEnabled(not busy)
+        if busy:
+            self.progress_bar.show()
+        else:
+            self.progress_bar.hide()

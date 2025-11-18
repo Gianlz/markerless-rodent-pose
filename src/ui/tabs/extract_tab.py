@@ -1,14 +1,14 @@
 """Frame Extraction Tab"""
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
     QLabel, QLineEdit, QComboBox, QSpinBox, QCheckBox,
-    QGroupBox, QFileDialog, QMessageBox
+    QGroupBox, QFileDialog, QMessageBox, QProgressBar
 )
 from PySide6.QtCore import QThread, Signal, Qt
 
 from ...core.frame_extractor import FrameExtractor
 from ...utils.validators import validate_config_path
-from ..styles import SECONDARY_BUTTON
+from ..styles import SECONDARY_BUTTON, INFO_LABEL
 
 
 class ExtractionWorker(QThread):
@@ -40,92 +40,83 @@ class ExtractTab(QWidget):
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(24)
         
-        # Config file
+        # --- Configuration ---
         config_group = QGroupBox("Configuration")
         config_layout = QHBoxLayout()
-        config_layout.setSpacing(4)
-        config_layout.setContentsMargins(8, 8, 8, 8)
+        config_layout.setContentsMargins(16, 24, 16, 16)
         
-        config_label = QLabel("Config:")
-        config_label.setFixedWidth(60)
         self.config_input = QLineEdit()
         self.config_input.setPlaceholderText("Path to config.yaml")
+        
         config_btn = QPushButton("Browse")
         config_btn.setObjectName(SECONDARY_BUTTON)
-        config_btn.setFixedWidth(80)
         config_btn.clicked.connect(self.browse_config)
         
-        config_layout.addWidget(config_label)
+        config_layout.addWidget(QLabel("Config Path:"))
         config_layout.addWidget(self.config_input)
         config_layout.addWidget(config_btn)
+        
         config_group.setLayout(config_layout)
         layout.addWidget(config_group)
         
-        # Extraction settings
+        # --- Extraction Settings ---
         settings_group = QGroupBox("Extraction Settings")
-        settings_layout = QGridLayout()
-        settings_layout.setSpacing(6)
-        settings_layout.setContentsMargins(8, 8, 8, 8)
-        settings_layout.setColumnStretch(1, 1)
-        settings_layout.setColumnStretch(3, 1)
+        settings_layout = QFormLayout()
+        settings_layout.setContentsMargins(16, 24, 16, 16)
+        settings_layout.setSpacing(12)
         
         # Mode
-        mode_label = QLabel("Mode:")
-        mode_label.setFixedWidth(80)
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(['automatic', 'manual'])
-        settings_layout.addWidget(mode_label, 0, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.mode_combo, 0, 1)
+        settings_layout.addRow("Extraction Mode:", self.mode_combo)
         
         # Algorithm
-        algo_label = QLabel("Algorithm:")
-        algo_label.setFixedWidth(80)
         self.algo_combo = QComboBox()
         self.algo_combo.addItems(['kmeans', 'uniform'])
-        settings_layout.addWidget(algo_label, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.algo_combo, 0, 3)
+        settings_layout.addRow("Algorithm:", self.algo_combo)
         
-        # Cluster settings
-        cluster_step_label = QLabel("Cluster Step:")
-        cluster_step_label.setFixedWidth(80)
+        # Parameters
+        self.num_frames_spin = QSpinBox()
+        self.num_frames_spin.setRange(1, 1000)
+        self.num_frames_spin.setValue(20)
+        self.num_frames_spin.setSuffix(" frames")
+        settings_layout.addRow("Number of Frames:", self.num_frames_spin)
+        
         self.cluster_step_spin = QSpinBox()
         self.cluster_step_spin.setRange(1, 100)
         self.cluster_step_spin.setValue(1)
-        settings_layout.addWidget(cluster_step_label, 1, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.cluster_step_spin, 1, 1)
+        settings_layout.addRow("Cluster Step:", self.cluster_step_spin)
         
-        cluster_width_label = QLabel("Resize Width:")
-        cluster_width_label.setFixedWidth(80)
         self.cluster_width_spin = QSpinBox()
-        self.cluster_width_spin.setRange(10, 200)
+        self.cluster_width_spin.setRange(10, 500)
         self.cluster_width_spin.setValue(30)
-        settings_layout.addWidget(cluster_width_label, 1, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.cluster_width_spin, 1, 3)
+        self.cluster_width_spin.setSuffix(" px")
+        settings_layout.addRow("Cluster Resize Width:", self.cluster_width_spin)
         
-        # Number of frames
-        num_frames_label = QLabel("Num Frames:")
-        num_frames_label.setFixedWidth(80)
-        self.num_frames_spin = QSpinBox()
-        self.num_frames_spin.setRange(5, 500)
-        self.num_frames_spin.setValue(20)
-        settings_layout.addWidget(num_frames_label, 2, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.num_frames_spin, 2, 1)
-        
-        # Checkboxes
         self.cluster_color_check = QCheckBox("Use Color Features")
-        settings_layout.addWidget(self.cluster_color_check, 2, 2, 1, 2)
+        settings_layout.addRow("", self.cluster_color_check)
         
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         
-        # Extract button
-        self.extract_btn = QPushButton("Extract Frames")
-        self.extract_btn.setFixedHeight(32)
+        # --- Actions ---
+        self.extract_btn = QPushButton("Start Frame Extraction")
+        self.extract_btn.setMinimumHeight(40)
         self.extract_btn.clicked.connect(self.extract_frames)
         layout.addWidget(self.extract_btn)
+        
+        # Progress/Status
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0) # Indeterminate
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
+        
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_label)
         
         layout.addStretch()
     
@@ -153,7 +144,8 @@ class ExtractTab(QWidget):
             QMessageBox.warning(self, "Validation Error", error)
             return
         
-        self.extract_btn.setEnabled(False)
+        self.set_busy(True)
+        self.status_label.setText("Extracting frames... This may take a while.")
         
         kwargs = {
             'config': config,
@@ -172,10 +164,21 @@ class ExtractTab(QWidget):
     
     def on_finished(self):
         """Handle extraction completion"""
-        self.extract_btn.setEnabled(True)
-        QMessageBox.information(self, "Success", "Frame extraction completed")
+        self.set_busy(False)
+        self.status_label.setText("Extraction completed successfully.")
+        QMessageBox.information(self, "Success", "Frame extraction completed!\nYou can now proceed to labeling.")
     
     def on_error(self, error: str):
         """Handle extraction error"""
-        self.extract_btn.setEnabled(True)
+        self.set_busy(False)
+        self.status_label.setText("Extraction failed.")
         QMessageBox.critical(self, "Error", f"Extraction failed:\n{error}")
+        
+    def set_busy(self, busy: bool):
+        """Update UI state during processing"""
+        self.extract_btn.setEnabled(not busy)
+        self.config_input.setEnabled(not busy)
+        if busy:
+            self.progress_bar.show()
+        else:
+            self.progress_bar.hide()

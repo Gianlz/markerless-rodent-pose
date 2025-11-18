@@ -1,14 +1,14 @@
 """Frame Labeling Tab"""
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
     QLabel, QLineEdit, QListWidget, QGroupBox, QFileDialog,
-    QMessageBox, QInputDialog, QComboBox
+    QMessageBox, QInputDialog, QComboBox, QAbstractItemView
 )
 from PySide6.QtCore import Qt
 
 from ...core.label_manager import LabelManager
 from ...utils.validators import validate_config_path
-from ..styles import SECONDARY_BUTTON
+from ..styles import SECONDARY_BUTTON, INFO_LABEL, DANGER_BUTTON
 
 
 class LabelTab(QWidget):
@@ -21,124 +21,121 @@ class LabelTab(QWidget):
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(24)
         
-        # Config file
+        # --- Configuration ---
         config_group = QGroupBox("Configuration")
         config_layout = QHBoxLayout()
-        config_layout.setSpacing(4)
-        config_layout.setContentsMargins(8, 8, 8, 8)
+        config_layout.setContentsMargins(16, 24, 16, 16)
         
-        config_label = QLabel("Config:")
-        config_label.setFixedWidth(60)
         self.config_input = QLineEdit()
         self.config_input.setPlaceholderText("Path to config.yaml")
         self.config_input.textChanged.connect(self.on_config_changed)
+        
         config_btn = QPushButton("Browse")
         config_btn.setObjectName(SECONDARY_BUTTON)
-        config_btn.setFixedWidth(80)
         config_btn.clicked.connect(self.browse_config)
         
-        config_layout.addWidget(config_label)
+        config_layout.addWidget(QLabel("Config:"))
         config_layout.addWidget(self.config_input)
         config_layout.addWidget(config_btn)
         config_group.setLayout(config_layout)
         layout.addWidget(config_group)
         
-        # Labeling section
-        label_group = QGroupBox("Frame Labeling")
-        label_layout = QVBoxLayout()
-        label_layout.setSpacing(6)
-        label_layout.setContentsMargins(8, 8, 8, 8)
+        # --- Labeling Actions ---
+        action_group = QGroupBox("Labeling Actions")
+        action_layout = QHBoxLayout()
+        action_layout.setContentsMargins(16, 24, 16, 16)
+        action_layout.setSpacing(16)
         
         self.label_btn = QPushButton("Launch Labeling GUI")
-        self.label_btn.setFixedHeight(32)
+        self.label_btn.setMinimumHeight(40)
         self.label_btn.clicked.connect(self.launch_labeling)
         
         self.check_labels_btn = QPushButton("Check Labels Status")
         self.check_labels_btn.setObjectName(SECONDARY_BUTTON)
-        self.check_labels_btn.setFixedHeight(28)
+        self.check_labels_btn.setMinimumHeight(40)
         self.check_labels_btn.clicked.connect(self.check_labels)
         
-        label_layout.addWidget(self.label_btn)
-        label_layout.addWidget(self.check_labels_btn)
-        label_group.setLayout(label_layout)
-        layout.addWidget(label_group)
+        action_layout.addWidget(self.label_btn)
+        action_layout.addWidget(self.check_labels_btn)
+        action_group.setLayout(action_layout)
+        layout.addWidget(action_group)
         
-        # Keypoints CRUD
-        keypoints_group = QGroupBox("Keypoints Management")
-        keypoints_layout = QVBoxLayout()
-        keypoints_layout.setSpacing(6)
-        keypoints_layout.setContentsMargins(8, 8, 8, 8)
+        # --- Keypoints & Skeleton ---
+        # We'll use a horizontal layout to split keypoints and skeleton side-by-side
+        split_layout = QHBoxLayout()
+        split_layout.setSpacing(16)
+        
+        # 1. Keypoints Group
+        kp_group = QGroupBox("Keypoints Management")
+        kp_layout = QVBoxLayout()
+        kp_layout.setContentsMargins(16, 24, 16, 16)
+        kp_layout.setSpacing(12)
         
         self.keypoints_list = QListWidget()
-        self.keypoints_list.setMaximumHeight(120)
-        keypoints_layout.addWidget(self.keypoints_list)
+        self.keypoints_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.keypoints_list.setAlternatingRowColors(True)
+        kp_layout.addWidget(self.keypoints_list)
         
-        keypoints_btn_layout = QHBoxLayout()
-        keypoints_btn_layout.setSpacing(4)
+        kp_btns = QHBoxLayout()
+        kp_add = QPushButton("Add")
+        kp_add.setObjectName(SECONDARY_BUTTON)
+        kp_add.clicked.connect(self.add_keypoint)
         
-        self.add_keypoint_btn = QPushButton("Add")
-        self.add_keypoint_btn.setObjectName(SECONDARY_BUTTON)
-        self.add_keypoint_btn.clicked.connect(self.add_keypoint)
+        kp_edit = QPushButton("Edit")
+        kp_edit.setObjectName(SECONDARY_BUTTON)
+        kp_edit.clicked.connect(self.edit_keypoint)
         
-        self.edit_keypoint_btn = QPushButton("Edit")
-        self.edit_keypoint_btn.setObjectName(SECONDARY_BUTTON)
-        self.edit_keypoint_btn.clicked.connect(self.edit_keypoint)
+        kp_del = QPushButton("Remove")
+        kp_del.setObjectName(DANGER_BUTTON)
+        kp_del.clicked.connect(self.remove_keypoint)
         
-        self.remove_keypoint_btn = QPushButton("Remove")
-        self.remove_keypoint_btn.setObjectName(SECONDARY_BUTTON)
-        self.remove_keypoint_btn.clicked.connect(self.remove_keypoint)
+        kp_btns.addWidget(kp_add)
+        kp_btns.addWidget(kp_edit)
+        kp_btns.addWidget(kp_del)
+        kp_layout.addLayout(kp_btns)
         
-        keypoints_btn_layout.addWidget(self.add_keypoint_btn)
-        keypoints_btn_layout.addWidget(self.edit_keypoint_btn)
-        keypoints_btn_layout.addWidget(self.remove_keypoint_btn)
-        keypoints_layout.addLayout(keypoints_btn_layout)
+        kp_group.setLayout(kp_layout)
+        split_layout.addWidget(kp_group)
         
-        keypoints_group.setLayout(keypoints_layout)
-        layout.addWidget(keypoints_group)
-        
-        # Skeleton builder
-        skeleton_group = QGroupBox("Skeleton Builder")
-        skeleton_layout = QVBoxLayout()
-        skeleton_layout.setSpacing(6)
-        skeleton_layout.setContentsMargins(8, 8, 8, 8)
+        # 2. Skeleton Group
+        sk_group = QGroupBox("Skeleton Builder")
+        sk_layout = QVBoxLayout()
+        sk_layout.setContentsMargins(16, 24, 16, 16)
+        sk_layout.setSpacing(12)
         
         self.skeleton_list = QListWidget()
-        self.skeleton_list.setMaximumHeight(120)
-        skeleton_layout.addWidget(self.skeleton_list)
+        self.skeleton_list.setAlternatingRowColors(True)
+        sk_layout.addWidget(self.skeleton_list)
         
-        connection_layout = QHBoxLayout()
-        connection_layout.setSpacing(4)
-        
+        # Connection inputs
+        conn_form = QHBoxLayout()
         self.bp1_combo = QComboBox()
         self.bp2_combo = QComboBox()
+        conn_form.addWidget(self.bp1_combo, 1)
+        conn_form.addWidget(QLabel("→"))
+        conn_form.addWidget(self.bp2_combo, 1)
+        sk_layout.addLayout(conn_form)
         
-        connection_layout.addWidget(QLabel("From:"))
-        connection_layout.addWidget(self.bp1_combo)
-        connection_layout.addWidget(QLabel("To:"))
-        connection_layout.addWidget(self.bp2_combo)
-        skeleton_layout.addLayout(connection_layout)
+        sk_btns = QHBoxLayout()
+        sk_add = QPushButton("Connect")
+        sk_add.setObjectName(SECONDARY_BUTTON)
+        sk_add.clicked.connect(self.add_connection)
         
-        skeleton_btn_layout = QHBoxLayout()
-        skeleton_btn_layout.setSpacing(4)
+        sk_del = QPushButton("Disconnect")
+        sk_del.setObjectName(DANGER_BUTTON)
+        sk_del.clicked.connect(self.remove_connection)
         
-        self.add_connection_btn = QPushButton("Add Connection")
-        self.add_connection_btn.setObjectName(SECONDARY_BUTTON)
-        self.add_connection_btn.clicked.connect(self.add_connection)
+        sk_btns.addWidget(sk_add)
+        sk_btns.addWidget(sk_del)
+        sk_layout.addLayout(sk_btns)
         
-        self.remove_connection_btn = QPushButton("Remove Connection")
-        self.remove_connection_btn.setObjectName(SECONDARY_BUTTON)
-        self.remove_connection_btn.clicked.connect(self.remove_connection)
+        sk_group.setLayout(sk_layout)
+        split_layout.addWidget(sk_group)
         
-        skeleton_btn_layout.addWidget(self.add_connection_btn)
-        skeleton_btn_layout.addWidget(self.remove_connection_btn)
-        skeleton_layout.addLayout(skeleton_btn_layout)
-        
-        skeleton_group.setLayout(skeleton_layout)
-        layout.addWidget(skeleton_group)
-        
+        layout.addLayout(split_layout)
         layout.addStretch()
     
     def browse_config(self):
@@ -167,9 +164,7 @@ class LabelTab(QWidget):
         """Load keypoints from config"""
         config = self.config_input.text()
         valid, _ = validate_config_path(config)
-        
-        if not valid:
-            return
+        if not valid: return
         
         try:
             bodyparts = self.label_manager.get_bodyparts(config)
@@ -181,30 +176,27 @@ class LabelTab(QWidget):
             self.bp2_combo.clear()
             self.bp1_combo.addItems(bodyparts)
             self.bp2_combo.addItems(bodyparts)
-        except Exception as e:
+        except Exception:
             pass
     
     def load_skeleton(self):
         """Load skeleton from config"""
         config = self.config_input.text()
         valid, _ = validate_config_path(config)
-        
-        if not valid:
-            return
+        if not valid: return
         
         try:
             skeleton = self.label_manager.get_skeleton(config)
             self.skeleton_list.clear()
             for connection in skeleton:
                 self.skeleton_list.addItem(f"{connection[0]} → {connection[1]}")
-        except Exception as e:
+        except Exception:
             pass
     
     def launch_labeling(self):
         """Launch DeepLabCut labeling GUI"""
         config = self.config_input.text()
         valid, error = validate_config_path(config)
-        
         if not valid:
             QMessageBox.warning(self, "Validation Error", error)
             return
@@ -218,7 +210,6 @@ class LabelTab(QWidget):
         """Check labeling status"""
         config = self.config_input.text()
         valid, error = validate_config_path(config)
-        
         if not valid:
             QMessageBox.warning(self, "Validation Error", error)
             return
@@ -239,7 +230,6 @@ class LabelTab(QWidget):
         """Add new keypoint"""
         config = self.config_input.text()
         valid, error = validate_config_path(config)
-        
         if not valid:
             QMessageBox.warning(self, "Validation Error", error)
             return
@@ -249,7 +239,6 @@ class LabelTab(QWidget):
             try:
                 self.label_manager.add_bodypart(config, name)
                 self.load_keypoints()
-                QMessageBox.information(self, "Success", f"Added keypoint: {name}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to add keypoint:\n{str(e)}")
     
@@ -257,7 +246,6 @@ class LabelTab(QWidget):
         """Edit selected keypoint"""
         config = self.config_input.text()
         valid, error = validate_config_path(config)
-        
         if not valid:
             QMessageBox.warning(self, "Validation Error", error)
             return
@@ -277,7 +265,6 @@ class LabelTab(QWidget):
                 self.label_manager.update_bodypart(config, old_name, new_name)
                 self.load_keypoints()
                 self.load_skeleton()
-                QMessageBox.information(self, "Success", f"Updated keypoint: {old_name} → {new_name}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to update keypoint:\n{str(e)}")
     
@@ -285,7 +272,6 @@ class LabelTab(QWidget):
         """Remove selected keypoint"""
         config = self.config_input.text()
         valid, error = validate_config_path(config)
-        
         if not valid:
             QMessageBox.warning(self, "Validation Error", error)
             return
@@ -306,7 +292,6 @@ class LabelTab(QWidget):
                 self.label_manager.remove_bodypart(config, name)
                 self.load_keypoints()
                 self.load_skeleton()
-                QMessageBox.information(self, "Success", f"Removed keypoint: {name}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to remove keypoint:\n{str(e)}")
     
@@ -314,7 +299,6 @@ class LabelTab(QWidget):
         """Add skeleton connection"""
         config = self.config_input.text()
         valid, error = validate_config_path(config)
-        
         if not valid:
             QMessageBox.warning(self, "Validation Error", error)
             return
@@ -333,7 +317,6 @@ class LabelTab(QWidget):
         try:
             self.label_manager.add_skeleton_connection(config, bp1, bp2)
             self.load_skeleton()
-            QMessageBox.information(self, "Success", f"Added connection: {bp1} → {bp2}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to add connection:\n{str(e)}")
     
@@ -341,7 +324,6 @@ class LabelTab(QWidget):
         """Remove selected skeleton connection"""
         config = self.config_input.text()
         valid, error = validate_config_path(config)
-        
         if not valid:
             QMessageBox.warning(self, "Validation Error", error)
             return
@@ -363,6 +345,5 @@ class LabelTab(QWidget):
             try:
                 self.label_manager.remove_skeleton_connection(config, bp1, bp2)
                 self.load_skeleton()
-                QMessageBox.information(self, "Success", f"Removed connection: {connection_text}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to remove connection:\n{str(e)}")

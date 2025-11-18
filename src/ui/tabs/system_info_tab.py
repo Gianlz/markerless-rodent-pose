@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QLabel, QTextEdit, QPushButton, QScrollArea
+    QLabel, QTextEdit, QPushButton, QScrollArea, QApplication
 )
 from PySide6.QtCore import Qt
 from ..styles import SECONDARY_BUTTON
@@ -20,86 +20,58 @@ class SystemInfoTab(QWidget):
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(16)
         
         # Scroll area for content
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         
         content = QWidget()
         content_layout = QVBoxLayout(content)
-        content_layout.setSpacing(8)
+        content_layout.setSpacing(24)
         content_layout.setContentsMargins(0, 0, 0, 0)
         
-        # System info
-        system_group = QGroupBox("System Information")
-        system_layout = QVBoxLayout()
-        system_layout.setSpacing(4)
-        system_layout.setContentsMargins(8, 8, 8, 8)
-        
-        self.system_text = QTextEdit()
-        self.system_text.setReadOnly(True)
-        self.system_text.setMaximumHeight(150)
-        system_layout.addWidget(self.system_text)
-        
-        system_group.setLayout(system_layout)
-        content_layout.addWidget(system_group)
-        
-        # Python info
-        python_group = QGroupBox("Python Environment")
-        python_layout = QVBoxLayout()
-        python_layout.setSpacing(4)
-        python_layout.setContentsMargins(8, 8, 8, 8)
-        
-        self.python_text = QTextEdit()
-        self.python_text.setReadOnly(True)
-        self.python_text.setMaximumHeight(100)
-        python_layout.addWidget(self.python_text)
-        
-        python_group.setLayout(python_layout)
-        content_layout.addWidget(python_group)
-        
-        # GPU/Acceleration info
-        gpu_group = QGroupBox("GPU & Acceleration")
-        gpu_layout = QVBoxLayout()
-        gpu_layout.setSpacing(4)
-        gpu_layout.setContentsMargins(8, 8, 8, 8)
-        
-        self.gpu_text = QTextEdit()
-        self.gpu_text.setReadOnly(True)
-        self.gpu_text.setMaximumHeight(200)
-        gpu_layout.addWidget(self.gpu_text)
-        
-        gpu_group.setLayout(gpu_layout)
-        content_layout.addWidget(gpu_group)
-        
-        # Dependencies info
-        deps_group = QGroupBox("Key Dependencies")
-        deps_layout = QVBoxLayout()
-        deps_layout.setSpacing(4)
-        deps_layout.setContentsMargins(8, 8, 8, 8)
-        
-        self.deps_text = QTextEdit()
-        self.deps_text.setReadOnly(True)
-        self.deps_text.setMaximumHeight(200)
-        deps_layout.addWidget(self.deps_text)
-        
-        deps_group.setLayout(deps_layout)
-        content_layout.addWidget(deps_group)
+        # Info Groups
+        self.system_text = self.create_info_group(content_layout, "System Information")
+        self.python_text = self.create_info_group(content_layout, "Python Environment")
+        self.gpu_text = self.create_info_group(content_layout, "GPU & Acceleration")
+        self.deps_text = self.create_info_group(content_layout, "Key Dependencies")
         
         content_layout.addStretch()
-        
         scroll.setWidget(content)
         layout.addWidget(scroll)
         
-        # Refresh button
+        # Actions
+        btn_layout = QHBoxLayout()
         refresh_btn = QPushButton("Refresh System Info")
         refresh_btn.setObjectName(SECONDARY_BUTTON)
-        refresh_btn.setFixedHeight(32)
+        refresh_btn.setMinimumHeight(40)
         refresh_btn.clicked.connect(self.load_system_info)
-        layout.addWidget(refresh_btn)
+        
+        copy_btn = QPushButton("Copy All to Clipboard")
+        copy_btn.setMinimumHeight(40)
+        copy_btn.clicked.connect(self.copy_all)
+        
+        btn_layout.addWidget(refresh_btn)
+        btn_layout.addWidget(copy_btn)
+        layout.addLayout(btn_layout)
+    
+    def create_info_group(self, layout, title):
+        group = QGroupBox(title)
+        glayout = QVBoxLayout()
+        glayout.setContentsMargins(16, 24, 16, 16)
+        
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setMaximumHeight(150)
+        text_edit.setStyleSheet("font-family: Consolas, Monaco, monospace; background-color: #f9fafb;")
+        
+        glayout.addWidget(text_edit)
+        group.setLayout(glayout)
+        layout.addWidget(group)
+        return text_edit
     
     def load_system_info(self):
         """Load and display system information"""
@@ -107,6 +79,20 @@ class SystemInfoTab(QWidget):
         self.python_text.setPlainText(self.get_python_info())
         self.gpu_text.setPlainText(self.get_gpu_info())
         self.deps_text.setPlainText(self.get_dependencies_info())
+    
+    def copy_all(self):
+        """Copy all info to clipboard"""
+        full_text = f"=== System Info ===\n{self.system_text.toPlainText()}\n\n"
+        full_text += f"=== Python Info ===\n{self.python_text.toPlainText()}\n\n"
+        full_text += f"=== GPU Info ===\n{self.gpu_text.toPlainText()}\n\n"
+        full_text += f"=== Dependencies ===\n{self.deps_text.toPlainText()}"
+        
+        clipboard = QApplication.clipboard() if QApplication.instance() else None
+        if clipboard:
+            clipboard.setText(full_text)
+        else:
+            # Fallback if we can't access clipboard directly (rare in PySide app)
+            pass
     
     def get_system_info(self) -> str:
         """Get system information"""
@@ -150,26 +136,27 @@ class SystemInfoTab(QWidget):
             info.append(f"PyTorch: {torch.__version__}")
             
             if torch.cuda.is_available():
-                info.append(f"CUDA Available: ✓ Yes")
+                info.append(f"CUDA Available: YES")
                 info.append(f"CUDA Version: {torch.version.cuda}")
                 info.append(f"cuDNN Version: {torch.backends.cudnn.version()}")
                 info.append(f"GPU Count: {torch.cuda.device_count()}")
                 
                 for i in range(torch.cuda.device_count()):
                     gpu_name = torch.cuda.get_device_name(i)
-                    gpu_mem = torch.cuda.get_device_properties(i).total_memory / (1024**3)
-                    info.append(f"GPU {i}: {gpu_name} ({gpu_mem:.1f} GB)")
+                    try:
+                        gpu_mem = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+                        info.append(f"GPU {i}: {gpu_name} ({gpu_mem:.1f} GB)")
+                    except:
+                        info.append(f"GPU {i}: {gpu_name}")
                 
                 info.append(f"Current Device: {torch.cuda.current_device()}")
             else:
-                info.append("CUDA Available: ✗ No")
+                info.append("CUDA Available: NO")
             
             if torch.backends.mps.is_available():
-                info.append("MPS (Apple Silicon): ✓ Available")
+                info.append("MPS (Apple Silicon): Available")
             else:
-                info.append("MPS (Apple Silicon): ✗ Not available")
-            
-            info.append(f"Default Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
+                info.append("MPS (Apple Silicon): Not available")
             
         except ImportError:
             info.append("PyTorch: Not installed")
@@ -177,14 +164,14 @@ class SystemInfoTab(QWidget):
         # FAISS
         try:
             import faiss
-            info.append(f"\nFAISS: {faiss.__version__ if hasattr(faiss, '__version__') else 'Installed'}")
+            info.append(f"\nFAISS: {getattr(faiss, '__version__', 'Installed (unknown version)')}")
             
             try:
                 # Test GPU availability
                 res = faiss.StandardGpuResources()
-                info.append("FAISS GPU: ✓ Available")
+                info.append("FAISS GPU: Available")
             except:
-                info.append("FAISS GPU: ✗ Not available (CPU only)")
+                info.append("FAISS GPU: Not available (CPU only)")
         except ImportError:
             info.append("\nFAISS: Not installed")
         
@@ -204,7 +191,6 @@ class SystemInfoTab(QWidget):
             ('tables', 'PyTables'),
             ('torch', 'PyTorch'),
             ('torchvision', 'TorchVision'),
-            ('faiss', 'FAISS'),
         ]
         
         for module_name, display_name in dependencies:
@@ -213,6 +199,6 @@ class SystemInfoTab(QWidget):
                 version = getattr(module, '__version__', 'Unknown')
                 info.append(f"{display_name}: {version}")
             except ImportError:
-                info.append(f"{display_name}: ✗ Not installed")
+                info.append(f"{display_name}: Not installed")
         
         return "\n".join(info)

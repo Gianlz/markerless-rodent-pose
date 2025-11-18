@@ -1,15 +1,15 @@
 """Video Inference Tab"""
 from pathlib import Path
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
     QLabel, QLineEdit, QComboBox, QSpinBox, QCheckBox, QListWidget,
-    QGroupBox, QFileDialog, QMessageBox
+    QGroupBox, QFileDialog, QMessageBox, QProgressBar, QAbstractItemView
 )
 from PySide6.QtCore import QThread, Signal, Qt
 
 from ...core.inference_manager import InferenceManager
 from ...utils.validators import validate_config_path
-from ..styles import SECONDARY_BUTTON
+from ..styles import SECONDARY_BUTTON, INFO_LABEL
 
 
 class InferenceWorker(QThread):
@@ -62,121 +62,119 @@ class InferenceTab(QWidget):
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(24)
         
-        # Config file
+        # --- Configuration ---
         config_group = QGroupBox("Configuration")
         config_layout = QHBoxLayout()
-        config_layout.setSpacing(4)
-        config_layout.setContentsMargins(8, 8, 8, 8)
+        config_layout.setContentsMargins(16, 24, 16, 16)
         
-        config_label = QLabel("Config:")
-        config_label.setFixedWidth(60)
         self.config_input = QLineEdit()
         self.config_input.setPlaceholderText("Path to config.yaml")
         self.config_input.textChanged.connect(self.on_config_changed)
+        
         config_btn = QPushButton("Browse")
         config_btn.setObjectName(SECONDARY_BUTTON)
-        config_btn.setFixedWidth(80)
         config_btn.clicked.connect(self.browse_config)
         
-        config_layout.addWidget(config_label)
+        config_layout.addWidget(QLabel("Config:"))
         config_layout.addWidget(self.config_input)
         config_layout.addWidget(config_btn)
         config_group.setLayout(config_layout)
         layout.addWidget(config_group)
         
-        # Video selection
-        video_group = QGroupBox("Videos")
+        # --- Videos ---
+        video_group = QGroupBox("Videos to Analyze")
         video_layout = QVBoxLayout()
-        video_layout.setSpacing(6)
-        video_layout.setContentsMargins(8, 8, 8, 8)
+        video_layout.setContentsMargins(16, 24, 16, 16)
+        video_layout.setSpacing(12)
         
         self.video_list = QListWidget()
-        self.video_list.setMaximumHeight(100)
+        self.video_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.video_list.setAlternatingRowColors(True)
+        self.video_list.setMinimumHeight(120)
         video_layout.addWidget(self.video_list)
         
-        video_btn_layout = QHBoxLayout()
-        video_btn_layout.setSpacing(4)
+        btn_layout = QHBoxLayout()
+        add_btn = QPushButton("Add Videos")
+        add_btn.clicked.connect(self.add_videos)
         
-        self.add_video_btn = QPushButton("Add Videos")
-        self.add_video_btn.setObjectName(SECONDARY_BUTTON)
-        self.add_video_btn.clicked.connect(self.add_videos)
+        remove_btn = QPushButton("Remove Selected")
+        remove_btn.setObjectName(SECONDARY_BUTTON)
+        remove_btn.clicked.connect(self.remove_video)
         
-        self.remove_video_btn = QPushButton("Remove")
-        self.remove_video_btn.setObjectName(SECONDARY_BUTTON)
-        self.remove_video_btn.clicked.connect(self.remove_video)
+        clear_btn = QPushButton("Clear All")
+        clear_btn.setObjectName(SECONDARY_BUTTON)
+        clear_btn.clicked.connect(self.clear_videos)
         
-        self.clear_videos_btn = QPushButton("Clear All")
-        self.clear_videos_btn.setObjectName(SECONDARY_BUTTON)
-        self.clear_videos_btn.clicked.connect(self.clear_videos)
-        
-        video_btn_layout.addWidget(self.add_video_btn)
-        video_btn_layout.addWidget(self.remove_video_btn)
-        video_btn_layout.addWidget(self.clear_videos_btn)
-        video_layout.addLayout(video_btn_layout)
+        btn_layout.addWidget(add_btn)
+        btn_layout.addWidget(remove_btn)
+        btn_layout.addWidget(clear_btn)
+        btn_layout.addStretch()
+        video_layout.addLayout(btn_layout)
         
         video_group.setLayout(video_layout)
         layout.addWidget(video_group)
         
-        # Inference settings
-        settings_group = QGroupBox("Inference Settings")
-        settings_layout = QGridLayout()
-        settings_layout.setSpacing(6)
-        settings_layout.setContentsMargins(8, 8, 8, 8)
-        settings_layout.setColumnStretch(1, 1)
+        # --- Settings ---
+        settings_group = QGroupBox("Analysis Settings")
+        settings_layout = QFormLayout()
+        settings_layout.setContentsMargins(16, 24, 16, 16)
+        settings_layout.setSpacing(12)
         
-        # Shuffle
-        shuffle_label = QLabel("Shuffle:")
-        shuffle_label.setFixedWidth(100)
         self.shuffle_combo = QComboBox()
-        settings_layout.addWidget(shuffle_label, 0, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.shuffle_combo, 0, 1)
+        settings_layout.addRow("Shuffle Index:", self.shuffle_combo)
         
-        # Trail points
-        trail_label = QLabel("Trail Points:")
-        trail_label.setFixedWidth(100)
         self.trail_spin = QSpinBox()
         self.trail_spin.setRange(0, 50)
         self.trail_spin.setValue(0)
-        settings_layout.addWidget(trail_label, 1, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.trail_spin, 1, 1)
+        settings_layout.addRow("Trail Points:", self.trail_spin)
         
-        # Checkboxes
         self.filtered_check = QCheckBox("Use Filtered Predictions")
         self.filtered_check.setChecked(True)
-        settings_layout.addWidget(self.filtered_check, 2, 0, 1, 2)
+        settings_layout.addRow("", self.filtered_check)
         
         self.skeleton_check = QCheckBox("Draw Skeleton")
         self.skeleton_check.setChecked(True)
-        settings_layout.addWidget(self.skeleton_check, 3, 0, 1, 2)
+        settings_layout.addRow("", self.skeleton_check)
         
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         
-        # Action buttons
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(4)
+        # --- Progress ---
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0) # Indeterminate
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
         
-        self.analyze_btn = QPushButton("Analyze Videos")
-        self.analyze_btn.setFixedHeight(32)
+        self.status_label = QLabel("Ready")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_label)
+        
+        # --- Actions ---
+        action_layout = QHBoxLayout()
+        action_layout.setSpacing(16)
+        
+        self.analyze_btn = QPushButton("Analyze Only")
+        self.analyze_btn.setObjectName(SECONDARY_BUTTON)
+        self.analyze_btn.setMinimumHeight(40)
         self.analyze_btn.clicked.connect(lambda: self.run_inference(analyze=True, create_video=False))
         
-        self.create_video_btn = QPushButton("Create Labeled Videos")
-        self.create_video_btn.setFixedHeight(32)
+        self.create_video_btn = QPushButton("Create Video Only")
+        self.create_video_btn.setObjectName(SECONDARY_BUTTON)
+        self.create_video_btn.setMinimumHeight(40)
         self.create_video_btn.clicked.connect(lambda: self.run_inference(analyze=False, create_video=True))
         
-        self.analyze_and_create_btn = QPushButton("Analyze + Create Videos")
-        self.analyze_and_create_btn.setFixedHeight(32)
-        self.analyze_and_create_btn.clicked.connect(lambda: self.run_inference(analyze=True, create_video=True))
+        self.full_btn = QPushButton("Analyze & Create Video")
+        self.full_btn.setMinimumHeight(40)
+        self.full_btn.clicked.connect(lambda: self.run_inference(analyze=True, create_video=True))
         
-        btn_layout.addWidget(self.analyze_btn)
-        btn_layout.addWidget(self.create_video_btn)
-        btn_layout.addWidget(self.analyze_and_create_btn)
+        action_layout.addWidget(self.analyze_btn)
+        action_layout.addWidget(self.create_video_btn)
+        action_layout.addWidget(self.full_btn)
         
-        layout.addLayout(btn_layout)
-        
+        layout.addLayout(action_layout)
         layout.addStretch()
     
     def browse_config(self):
@@ -206,9 +204,7 @@ class InferenceTab(QWidget):
         """Load available shuffles"""
         config = self.config_input.text()
         valid, _ = validate_config_path(config)
-        
-        if not valid:
-            return
+        if not valid: return
         
         try:
             from ...core.train_manager import TrainManager
@@ -228,16 +224,15 @@ class InferenceTab(QWidget):
             "",
             "Video Files (*.mp4 *.avi *.mov *.mkv)"
         )
+        existing = [self.video_list.item(i).text() for i in range(self.video_list.count())]
         for path in file_paths:
-            if path not in [self.video_list.item(i).text() 
-                           for i in range(self.video_list.count())]:
+            if path not in existing:
                 self.video_list.addItem(path)
     
     def remove_video(self):
-        """Remove selected video"""
-        current = self.video_list.currentRow()
-        if current >= 0:
-            self.video_list.takeItem(current)
+        """Remove selected videos"""
+        for item in self.video_list.selectedItems():
+            self.video_list.takeItem(self.video_list.row(item))
     
     def clear_videos(self):
         """Clear all videos"""
@@ -258,13 +253,10 @@ class InferenceTab(QWidget):
         
         videos = [self.video_list.item(i).text() for i in range(self.video_list.count())]
         
-        # Check if best snapshot exists
+        # Check model
         best_snapshot = self.manager.get_best_snapshot(config)
         if not best_snapshot:
-            QMessageBox.warning(
-                self, "No Model",
-                "No trained model found. Please train a model first."
-            )
+            QMessageBox.warning(self, "No Model", "No trained model found. Please train a model first.")
             return
         
         if create_video and not analyze:
@@ -276,39 +268,27 @@ class InferenceTab(QWidget):
             if unanalyzed:
                 reply = QMessageBox.question(
                     self, "Videos Not Analyzed",
-                    f"{len(unanalyzed)} video(s) have not been analyzed yet:\n\n" +
-                    "\n".join(unanalyzed[:5]) +
-                    ("\n..." if len(unanalyzed) > 5 else "") +
-                    "\n\nDo you want to analyze them first?",
+                    f"{len(unanalyzed)} video(s) have not been analyzed yet. Analyze them first?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
-                
                 if reply == QMessageBox.StandardButton.Yes:
                     analyze = True
                 else:
                     return
         
-        self.analyze_btn.setEnabled(False)
-        self.create_video_btn.setEnabled(False)
-        self.analyze_and_create_btn.setEnabled(False)
+        self.set_busy(True)
+        self.status_label.setText("Starting processing...")
         
         shuffle = int(self.shuffle_combo.currentText()) if self.shuffle_combo.currentText() else 1
         
-        analyze_kwargs = {
+        kwargs = {
             'shuffle': shuffle,
             'trainingsetindex': 0,
-            'save_as_csv': True
-        }
-        
-        video_kwargs = {
-            'shuffle': shuffle,
-            'trainingsetindex': 0,
+            'save_as_csv': True,
             'filtered': self.filtered_check.isChecked(),
             'draw_skeleton': self.skeleton_check.isChecked(),
             'trailpoints': self.trail_spin.value()
         }
-        
-        kwargs = {**analyze_kwargs, **video_kwargs}
         
         self.worker = InferenceWorker(
             self.manager, config, videos, analyze, create_video, **kwargs
@@ -320,18 +300,26 @@ class InferenceTab(QWidget):
     
     def on_progress(self, message: str):
         """Handle progress update"""
-        pass
+        self.status_label.setText(message)
     
     def on_finished(self):
         """Handle inference completion"""
-        self.analyze_btn.setEnabled(True)
-        self.create_video_btn.setEnabled(True)
-        self.analyze_and_create_btn.setEnabled(True)
+        self.set_busy(False)
+        self.status_label.setText("Completed!")
         QMessageBox.information(self, "Success", "Video processing completed successfully")
     
     def on_error(self, error: str):
         """Handle inference error"""
-        self.analyze_btn.setEnabled(True)
-        self.create_video_btn.setEnabled(True)
-        self.analyze_and_create_btn.setEnabled(True)
+        self.set_busy(False)
+        self.status_label.setText("Error occurred.")
         QMessageBox.critical(self, "Error", f"Processing failed:\n{error}")
+        
+    def set_busy(self, busy: bool):
+        """Toggle UI"""
+        self.analyze_btn.setEnabled(not busy)
+        self.create_video_btn.setEnabled(not busy)
+        self.full_btn.setEnabled(not busy)
+        if busy:
+            self.progress_bar.show()
+        else:
+            self.progress_bar.hide()

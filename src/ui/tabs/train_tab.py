@@ -1,14 +1,14 @@
 """Model Training Tab"""
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
     QLabel, QLineEdit, QComboBox, QSpinBox, QGroupBox,
-    QFileDialog, QMessageBox, QTextEdit
+    QFileDialog, QMessageBox, QTextEdit, QProgressBar
 )
 from PySide6.QtCore import QThread, Signal, Qt
 
 from ...core.train_manager import TrainManager
 from ...utils.validators import validate_config_path
-from ..styles import SECONDARY_BUTTON
+from ..styles import SECONDARY_BUTTON, INFO_LABEL
 
 
 class TrainingWorker(QThread):
@@ -41,125 +41,99 @@ class TrainTab(QWidget):
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(24)
         
-        # Config file
+        # --- Configuration ---
         config_group = QGroupBox("Configuration")
         config_layout = QHBoxLayout()
-        config_layout.setSpacing(4)
-        config_layout.setContentsMargins(8, 8, 8, 8)
+        config_layout.setContentsMargins(16, 24, 16, 16)
         
-        config_label = QLabel("Config:")
-        config_label.setFixedWidth(60)
         self.config_input = QLineEdit()
         self.config_input.setPlaceholderText("Path to config.yaml")
         self.config_input.textChanged.connect(self.on_config_changed)
+        
         config_btn = QPushButton("Browse")
         config_btn.setObjectName(SECONDARY_BUTTON)
-        config_btn.setFixedWidth(80)
         config_btn.clicked.connect(self.browse_config)
         
-        config_layout.addWidget(config_label)
+        config_layout.addWidget(QLabel("Config:"))
         config_layout.addWidget(self.config_input)
         config_layout.addWidget(config_btn)
         config_group.setLayout(config_layout)
         layout.addWidget(config_group)
         
-        # Training info
-        info_group = QGroupBox("Training Info")
+        # --- Info ---
+        info_group = QGroupBox("Network Info")
         info_layout = QVBoxLayout()
-        info_layout.setSpacing(4)
-        info_layout.setContentsMargins(8, 8, 8, 8)
+        info_layout.setContentsMargins(16, 24, 16, 16)
         
         self.info_label = QLabel("Load a config file to see training info")
         self.info_label.setWordWrap(True)
         info_layout.addWidget(self.info_label)
-        
         info_group.setLayout(info_layout)
         layout.addWidget(info_group)
         
-        # Training parameters
+        # --- Parameters ---
         params_group = QGroupBox("Training Parameters")
-        params_layout = QGridLayout()
-        params_layout.setSpacing(6)
-        params_layout.setContentsMargins(8, 8, 8, 8)
-        params_layout.setColumnStretch(1, 1)
-        params_layout.setColumnStretch(3, 1)
+        params_layout = QFormLayout()
+        params_layout.setContentsMargins(16, 24, 16, 16)
+        params_layout.setSpacing(12)
         
         # Shuffle
-        shuffle_label = QLabel("Shuffle:")
-        shuffle_label.setFixedWidth(120)
         self.shuffle_combo = QComboBox()
-        params_layout.addWidget(shuffle_label, 0, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        params_layout.addWidget(self.shuffle_combo, 0, 1)
+        params_layout.addRow("Shuffle Index:", self.shuffle_combo)
         
-        # Display iterations
-        display_label = QLabel("Display Iterations:")
-        display_label.setFixedWidth(120)
+        # Iterations
         self.display_spin = QSpinBox()
         self.display_spin.setRange(10, 100000)
-        self.display_spin.setSingleStep(10)
+        self.display_spin.setSingleStep(100)
         self.display_spin.setValue(1000)
-        params_layout.addWidget(display_label, 1, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        params_layout.addWidget(self.display_spin, 1, 1)
+        self.display_spin.setSuffix(" iters")
+        params_layout.addRow("Display Iterations:", self.display_spin)
         
-        # Snapshots to keep
-        snapshots_label = QLabel("Snapshots to Keep:")
-        snapshots_label.setFixedWidth(120)
-        self.snapshots_spin = QSpinBox()
-        self.snapshots_spin.setRange(1, 20)
-        self.snapshots_spin.setValue(5)
-        params_layout.addWidget(snapshots_label, 1, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        params_layout.addWidget(self.snapshots_spin, 1, 3)
-        
-        # Maximum epochs
-        max_epochs_label = QLabel("Maximum Epochs:")
-        max_epochs_label.setFixedWidth(120)
-        self.max_epochs_spin = QSpinBox()
-        self.max_epochs_spin.setRange(100, 10000000)
-        self.max_epochs_spin.setSingleStep(1000)
-        self.max_epochs_spin.setValue(200000)
-        params_layout.addWidget(max_epochs_label, 2, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        params_layout.addWidget(self.max_epochs_spin, 2, 1)
-        
-        # Save epochs
-        save_epochs_label = QLabel("Save Epochs:")
-        save_epochs_label.setFixedWidth(120)
         self.save_epochs_spin = QSpinBox()
         self.save_epochs_spin.setRange(100, 1000000)
         self.save_epochs_spin.setSingleStep(1000)
         self.save_epochs_spin.setValue(50000)
-        params_layout.addWidget(save_epochs_label, 2, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        params_layout.addWidget(self.save_epochs_spin, 2, 3)
+        self.save_epochs_spin.setSuffix(" iters")
+        params_layout.addRow("Save Checkpoint Every:", self.save_epochs_spin)
+        
+        self.max_epochs_spin = QSpinBox()
+        self.max_epochs_spin.setRange(100, 10000000)
+        self.max_epochs_spin.setSingleStep(1000)
+        self.max_epochs_spin.setValue(200000)
+        self.max_epochs_spin.setSuffix(" iters")
+        params_layout.addRow("Max Iterations:", self.max_epochs_spin)
+        
+        self.snapshots_spin = QSpinBox()
+        self.snapshots_spin.setRange(1, 20)
+        self.snapshots_spin.setValue(5)
+        params_layout.addRow("Keep Last N Snapshots:", self.snapshots_spin)
         
         params_group.setLayout(params_layout)
         layout.addWidget(params_group)
         
-        # Resume training
+        # --- Resume Training ---
         resume_group = QGroupBox("Resume Training (Optional)")
-        resume_layout = QVBoxLayout()
-        resume_layout.setSpacing(6)
-        resume_layout.setContentsMargins(8, 8, 8, 8)
+        resume_layout = QHBoxLayout()
+        resume_layout.setContentsMargins(16, 24, 16, 16)
         
-        snapshot_layout = QHBoxLayout()
-        snapshot_layout.setSpacing(4)
-        
-        snapshot_label = QLabel("Snapshot:")
-        snapshot_label.setFixedWidth(80)
         self.snapshot_combo = QComboBox()
         self.snapshot_combo.addItem("Start from scratch")
-        
-        snapshot_layout.addWidget(snapshot_label)
-        snapshot_layout.addWidget(self.snapshot_combo)
-        resume_layout.addLayout(snapshot_layout)
+        resume_layout.addWidget(QLabel("Resume from:"))
+        resume_layout.addWidget(self.snapshot_combo, 1)
         
         resume_group.setLayout(resume_layout)
         layout.addWidget(resume_group)
         
-        # Train button
+        # --- Actions ---
+        self.status_label = QLabel("Ready")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_label)
+
         self.train_btn = QPushButton("Start Training")
-        self.train_btn.setFixedHeight(32)
+        self.train_btn.setMinimumHeight(40)
         self.train_btn.clicked.connect(self.start_training)
         layout.addWidget(self.train_btn)
         
@@ -200,7 +174,6 @@ class TrainTab(QWidget):
         
         try:
             import yaml
-            
             with open(config, 'r') as f:
                 cfg = yaml.safe_load(f)
             
@@ -210,10 +183,13 @@ class TrainTab(QWidget):
             
             info = self.manager.get_training_info(config)
             
-            text = f"Network: {net_type} | Engine: pytorch\n"
-            text += f"Init Weights: {init_weights}\n"
-            text += f"Project Type: {'Multi-animal' if multianimal else 'Single-animal'}\n"
-            text += f"Training Dataset: {'✓ Created' if info['training_dataset_exists'] else '✗ Not created'}"
+            text = f"Network: <b>{net_type}</b> (PyTorch)<br>"
+            text += f"Init Weights: <b>{init_weights}</b><br>"
+            text += f"Project Type: <b>{'Multi-animal' if multianimal else 'Single-animal'}</b><br>"
+            created_text = '<span style="color:green">✓ Created</span>'
+            not_created_text = '<span style="color:red">✗ Not created</span>'
+            status = created_text if info['training_dataset_exists'] else not_created_text
+            text += f"Training Dataset: {status}"
             
             self.info_label.setText(text)
         except Exception as e:
@@ -223,26 +199,21 @@ class TrainTab(QWidget):
         """Load available shuffles"""
         config = self.config_input.text()
         valid, _ = validate_config_path(config)
-        
-        if not valid:
-            return
+        if not valid: return
         
         try:
             shuffles = self.manager.get_available_shuffles(config)
             self.shuffle_combo.clear()
             self.shuffle_combo.addItems([str(s) for s in shuffles])
-            
             self.shuffle_combo.currentTextChanged.connect(self.load_snapshots)
-        except Exception as e:
+        except Exception:
             pass
     
     def load_snapshots(self):
         """Load available snapshots for selected shuffle"""
         config = self.config_input.text()
         valid, _ = validate_config_path(config)
-        
-        if not valid:
-            return
+        if not valid: return
         
         try:
             shuffle = int(self.shuffle_combo.currentText()) if self.shuffle_combo.currentText() else 1
@@ -251,7 +222,7 @@ class TrainTab(QWidget):
             self.snapshot_combo.clear()
             self.snapshot_combo.addItem("Start from scratch")
             self.snapshot_combo.addItems(snapshots)
-        except Exception as e:
+        except Exception:
             pass
     
     def start_training(self):
@@ -263,13 +234,9 @@ class TrainTab(QWidget):
             QMessageBox.warning(self, "Validation Error", error)
             return
         
-        # Check if training dataset exists
         info = self.manager.get_training_info(config)
         if not info['training_dataset_exists']:
-            QMessageBox.warning(
-                self, "Warning",
-                "Training dataset not found. Please create training dataset first."
-            )
+            QMessageBox.warning(self, "Warning", "Training dataset not found. Please create it first.")
             return
         
         reply = QMessageBox.question(
@@ -282,8 +249,8 @@ class TrainTab(QWidget):
         if reply != QMessageBox.StandardButton.Yes:
             return
         
-        self.train_btn.setEnabled(False)
-        self.train_btn.setText("Training in progress...")
+        self.set_busy(True)
+        self.status_label.setText("Training in progress...")
         
         kwargs = {
             'shuffle': int(self.shuffle_combo.currentText()) if self.shuffle_combo.currentText() else 1,
@@ -300,13 +267,17 @@ class TrainTab(QWidget):
     
     def on_finished(self):
         """Handle training completion"""
-        self.train_btn.setEnabled(True)
-        self.train_btn.setText("Start Training")
+        self.set_busy(False)
+        self.status_label.setText("Training completed.")
         self.load_snapshots()
         QMessageBox.information(self, "Success", "Training completed successfully")
     
     def on_error(self, error: str):
         """Handle training error"""
-        self.train_btn.setEnabled(True)
-        self.train_btn.setText("Start Training")
+        self.set_busy(False)
+        self.status_label.setText("Training failed.")
         QMessageBox.critical(self, "Error", f"Training failed:\n{error}")
+        
+    def set_busy(self, busy: bool):
+        """Toggle UI"""
+        self.train_btn.setEnabled(not busy)

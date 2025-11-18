@@ -1,14 +1,14 @@
 """Training Dataset Creation Tab"""
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
     QLabel, QLineEdit, QComboBox, QSpinBox, QCheckBox,
     QGroupBox, QFileDialog, QMessageBox, QTextEdit
 )
-from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtCore import QThread, Signal, Qt, QSettings
 
 from ...core.training_manager import TrainingManager
 from ...utils.validators import validate_config_path
-from ..styles import SECONDARY_BUTTON
+from ..styles import SECONDARY_BUTTON, INFO_LABEL
 
 
 class TrainingDatasetWorker(QThread):
@@ -42,106 +42,91 @@ class TrainingTab(QWidget):
         self.manager = TrainingManager()
         self.worker = None
         self.is_multianimal = False
+        self.settings = QSettings("DeepLabCut", "FrameExtractor")
         self.init_ui()
+        self.load_settings()
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(24)
         
-        # Config file
+        # --- Configuration ---
         config_group = QGroupBox("Configuration")
         config_layout = QHBoxLayout()
-        config_layout.setSpacing(4)
-        config_layout.setContentsMargins(8, 8, 8, 8)
+        config_layout.setContentsMargins(16, 24, 16, 16)
         
-        config_label = QLabel("Config:")
-        config_label.setFixedWidth(60)
         self.config_input = QLineEdit()
         self.config_input.setPlaceholderText("Path to config.yaml")
         self.config_input.textChanged.connect(self.on_config_changed)
+        
         config_btn = QPushButton("Browse")
         config_btn.setObjectName(SECONDARY_BUTTON)
-        config_btn.setFixedWidth(80)
         config_btn.clicked.connect(self.browse_config)
         
-        config_layout.addWidget(config_label)
+        config_layout.addWidget(QLabel("Config:"))
         config_layout.addWidget(self.config_input)
         config_layout.addWidget(config_btn)
         config_group.setLayout(config_layout)
         layout.addWidget(config_group)
         
-        # Dataset settings
+        # --- Dataset Settings ---
         settings_group = QGroupBox("Dataset Settings")
-        settings_layout = QGridLayout()
-        settings_layout.setSpacing(6)
-        settings_layout.setContentsMargins(8, 8, 8, 8)
-        settings_layout.setColumnStretch(1, 1)
-        settings_layout.setColumnStretch(3, 1)
+        settings_layout = QFormLayout()
+        settings_layout.setContentsMargins(16, 24, 16, 16)
+        settings_layout.setSpacing(12)
         
-        # Shuffle
-        shuffle_label = QLabel("Shuffles:")
-        shuffle_label.setFixedWidth(120)
+        # Shuffles
         self.shuffle_spin = QSpinBox()
         self.shuffle_spin.setRange(1, 10)
         self.shuffle_spin.setValue(1)
-        settings_layout.addWidget(shuffle_label, 0, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.shuffle_spin, 0, 1)
+        settings_layout.addRow("Shuffles:", self.shuffle_spin)
         
-        # Network architecture
-        net_label = QLabel("Network:")
-        net_label.setFixedWidth(120)
+        # Network
         self.net_combo = QComboBox()
-        settings_layout.addWidget(net_label, 1, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.net_combo, 1, 1, 1, 3)
+        settings_layout.addRow("Network Architecture:", self.net_combo)
         
         # Augmentation
-        aug_label = QLabel("Augmentation:")
-        aug_label.setFixedWidth(120)
         self.aug_combo = QComboBox()
         self.aug_combo.addItems(self.manager.get_available_augmenters())
         self.aug_combo.currentTextChanged.connect(self.save_settings)
-        settings_layout.addWidget(aug_label, 2, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.aug_combo, 2, 1, 1, 3)
+        settings_layout.addRow("Augmentation:", self.aug_combo)
         
-        # Weight initialization
-        weight_label = QLabel("Weight Init:")
-        weight_label.setFixedWidth(120)
+        # Weight Init
         self.weight_combo = QComboBox()
         self.weight_combo.addItems(self.manager.get_available_weight_init())
         self.weight_combo.currentTextChanged.connect(self.save_settings)
-        settings_layout.addWidget(weight_label, 3, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.weight_combo, 3, 1, 1, 3)
+        settings_layout.addRow("Weight Initialization:", self.weight_combo)
         
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         
-        # Status
+        # --- Status & Actions ---
         status_group = QGroupBox("Dataset Status")
         status_layout = QVBoxLayout()
-        status_layout.setSpacing(6)
-        status_layout.setContentsMargins(8, 8, 8, 8)
+        status_layout.setContentsMargins(16, 24, 16, 16)
         
         self.status_text = QTextEdit()
         self.status_text.setReadOnly(True)
-        self.status_text.setMaximumHeight(80)
+        self.status_text.setMaximumHeight(100)
         self.status_text.setPlaceholderText("Dataset status will appear here...")
         status_layout.addWidget(self.status_text)
         
+        btn_layout = QHBoxLayout()
         self.check_status_btn = QPushButton("Check Status")
         self.check_status_btn.setObjectName(SECONDARY_BUTTON)
-        self.check_status_btn.setFixedHeight(28)
         self.check_status_btn.clicked.connect(self.check_status)
-        status_layout.addWidget(self.check_status_btn)
+        
+        self.create_btn = QPushButton("Create Training Dataset")
+        self.create_btn.setMinimumHeight(40)
+        self.create_btn.clicked.connect(self.create_dataset)
+        
+        btn_layout.addWidget(self.check_status_btn)
+        btn_layout.addWidget(self.create_btn)
+        status_layout.addLayout(btn_layout)
         
         status_group.setLayout(status_layout)
         layout.addWidget(status_group)
-        
-        # Create button
-        self.create_btn = QPushButton("Create Training Dataset")
-        self.create_btn.setFixedHeight(32)
-        self.create_btn.clicked.connect(self.create_dataset)
-        layout.addWidget(self.create_btn)
         
         layout.addStretch()
     
@@ -196,9 +181,9 @@ class TrainingTab(QWidget):
             
             if status['exists']:
                 text = f"✓ Training dataset exists\n"
-                text += f"Iterations: {status['iterations']}\n"
-                text += f"Latest: {status['latest_iteration']}\n"
-                text += f"Train folders: {status['train_folders']}"
+                text += f"Iterations: {status.get('iterations', 'N/A')}\n"
+                text += f"Latest: {status.get('latest_iteration', 'N/A')}\n"
+                text += f"Train folders: {status.get('train_folders', 'N/A')}"
             else:
                 text = f"✗ {status['message']}"
             
@@ -215,7 +200,7 @@ class TrainingTab(QWidget):
             QMessageBox.warning(self, "Validation Error", error)
             return
         
-        self.create_btn.setEnabled(False)
+        self.set_busy(True)
         self.status_text.setPlainText("Creating training dataset...")
         
         weight_choice = self.weight_combo.currentText()
@@ -243,15 +228,20 @@ class TrainingTab(QWidget):
     
     def on_finished(self):
         """Handle dataset creation completion"""
-        self.create_btn.setEnabled(True)
+        self.set_busy(False)
         self.check_status()
         QMessageBox.information(self, "Success", "Training dataset created successfully")
     
     def on_error(self, error: str):
         """Handle dataset creation error"""
-        self.create_btn.setEnabled(True)
+        self.set_busy(False)
         self.status_text.setPlainText(f"Error: {error}")
         QMessageBox.critical(self, "Error", f"Failed to create training dataset:\n{error}")
+        
+    def set_busy(self, busy: bool):
+        """Toggle UI"""
+        self.create_btn.setEnabled(not busy)
+        self.check_status_btn.setEnabled(not busy)
 
     def save_settings(self):
         """Save current settings"""

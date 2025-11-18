@@ -1,5 +1,5 @@
 """Main application window"""
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QStatusBar
 from PySide6.QtCore import Qt
 
 from .tabs import (
@@ -17,21 +17,23 @@ class MainWindow(QMainWindow):
     
     def init_ui(self):
         self.setWindowTitle("DeepLabCut Frame Extractor")
-        self.setMinimumSize(750, 550)
-        self.resize(800, 600)
+        self.setMinimumSize(900, 700)  # Slightly larger for modern spacing
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
+        # Main layout with padding
         layout = QVBoxLayout(central_widget)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(16)
         
         # Create tabs
-        tabs = QTabWidget()
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True) # cleaner look on some platforms
         
-        self.clean_video_tab = CleanVideoTab()
+        # Initialize tabs
         self.project_tab = ProjectTab()
+        self.clean_video_tab = CleanVideoTab()
         self.extract_tab = ExtractTab()
         self.label_tab = LabelTab()
         self.training_tab = TrainingTab()
@@ -40,20 +42,26 @@ class MainWindow(QMainWindow):
         self.outlier_tab = OutlierTab()
         self.system_info_tab = SystemInfoTab()
         
-        tabs.addTab(self.clean_video_tab, "Clean Videos")
-        tabs.addTab(self.project_tab, "Project Manager")
-        tabs.addTab(self.extract_tab, "Extract Frames")
-        tabs.addTab(self.label_tab, "Label Frames")
-        tabs.addTab(self.training_tab, "Create Training Dataset")
-        tabs.addTab(self.train_tab, "Train Network")
-        tabs.addTab(self.inference_tab, "Analyze Videos")
-        tabs.addTab(self.outlier_tab, "Extract Outliers")
-        tabs.addTab(self.system_info_tab, "System Info")
+        # Add tabs in logical order
+        self.tabs.addTab(self.project_tab, "Project Manager")
+        self.tabs.addTab(self.clean_video_tab, "Clean Videos")
+        self.tabs.addTab(self.extract_tab, "Extract Frames")
+        self.tabs.addTab(self.label_tab, "Label Frames")
+        self.tabs.addTab(self.training_tab, "Create Dataset")
+        self.tabs.addTab(self.train_tab, "Train Network")
+        self.tabs.addTab(self.inference_tab, "Analyze Videos")
+        self.tabs.addTab(self.outlier_tab, "Extract Outliers")
+        self.tabs.addTab(self.system_info_tab, "System Info")
         
         # Connect project creation to auto-fill config
-        tabs.currentChanged.connect(self.on_tab_changed)
+        self.tabs.currentChanged.connect(self.on_tab_changed)
         
-        layout.addWidget(tabs)
+        layout.addWidget(self.tabs)
+
+        # Status Bar
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("Ready")
     
     def on_tab_changed(self, index: int):
         """Handle tab change to sync config paths"""

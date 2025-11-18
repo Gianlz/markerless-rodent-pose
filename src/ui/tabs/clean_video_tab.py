@@ -1,14 +1,14 @@
 """Video Cleaning Tab"""
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QPushButton,
     QLabel, QLineEdit, QComboBox, QSpinBox, QListWidget, QGroupBox,
-    QFileDialog, QMessageBox, QProgressBar
+    QFileDialog, QMessageBox, QProgressBar, QAbstractItemView, QListWidgetItem
 )
 from PySide6.QtCore import QThread, Signal, Qt
 from pathlib import Path
 
 from ...utils.video_utils import reencode_video, check_video_integrity
-from ..styles import SECONDARY_BUTTON
+from ..styles import SECONDARY_BUTTON, INFO_LABEL
 
 
 class VideoCleanWorker(QThread):
@@ -58,144 +58,119 @@ class CleanVideoTab(QWidget):
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(24)
         
-        # Info label
+        # Info Label
+        info_frame = QGroupBox()
+        info_layout = QVBoxLayout()
         info_label = QLabel(
             "Re-encode videos to fix corruption issues and ensure compatibility with DeepLabCut.\n"
-            "This process creates clean copies of your videos with optimal encoding settings."
+            "This creates clean copies with optimal encoding settings."
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #888; padding: 8px;")
-        layout.addWidget(info_label)
+        info_layout.addWidget(info_label)
+        info_frame.setLayout(info_layout)
+        info_frame.setStyleSheet("QGroupBox { border: none; background: transparent; margin-top: 0; padding: 0; }")
+        layout.addWidget(info_frame)
         
-        # Video selection
+        # --- Videos to Clean ---
         video_group = QGroupBox("Videos to Clean")
         video_layout = QVBoxLayout()
-        video_layout.setSpacing(6)
-        video_layout.setContentsMargins(8, 8, 8, 8)
+        video_layout.setContentsMargins(16, 24, 16, 16)
+        video_layout.setSpacing(12)
         
         self.video_list = QListWidget()
-        self.video_list.setMaximumHeight(150)
+        self.video_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.video_list.setAlternatingRowColors(True)
+        self.video_list.setMinimumHeight(150)
         video_layout.addWidget(self.video_list)
         
-        video_btn_layout = QHBoxLayout()
-        video_btn_layout.setSpacing(4)
+        # Buttons
+        btn_layout = QHBoxLayout()
         
-        self.add_videos_btn = QPushButton("Add Videos")
-        self.add_videos_btn.setObjectName(SECONDARY_BUTTON)
-        self.add_videos_btn.clicked.connect(self.add_videos)
+        add_btn = QPushButton("Add Videos")
+        add_btn.clicked.connect(self.add_videos)
         
-        self.add_folder_btn = QPushButton("Add Folder")
-        self.add_folder_btn.setObjectName(SECONDARY_BUTTON)
-        self.add_folder_btn.clicked.connect(self.add_folder)
+        folder_btn = QPushButton("Add Folder")
+        folder_btn.setObjectName(SECONDARY_BUTTON)
+        folder_btn.clicked.connect(self.add_folder)
         
-        self.remove_btn = QPushButton("Remove")
-        self.remove_btn.setObjectName(SECONDARY_BUTTON)
-        self.remove_btn.clicked.connect(self.remove_video)
+        remove_btn = QPushButton("Remove Selected")
+        remove_btn.setObjectName(SECONDARY_BUTTON)
+        remove_btn.clicked.connect(self.remove_video)
         
-        self.clear_btn = QPushButton("Clear All")
-        self.clear_btn.setObjectName(SECONDARY_BUTTON)
-        self.clear_btn.clicked.connect(self.clear_videos)
+        clear_btn = QPushButton("Clear All")
+        clear_btn.setObjectName(SECONDARY_BUTTON)
+        clear_btn.clicked.connect(self.clear_videos)
         
-        self.check_btn = QPushButton("Check Integrity")
-        self.check_btn.setObjectName(SECONDARY_BUTTON)
-        self.check_btn.clicked.connect(self.check_integrity)
+        check_btn = QPushButton("Check Integrity")
+        check_btn.setObjectName(SECONDARY_BUTTON)
+        check_btn.clicked.connect(self.check_integrity)
         
-        video_btn_layout.addWidget(self.add_videos_btn)
-        video_btn_layout.addWidget(self.add_folder_btn)
-        video_btn_layout.addWidget(self.remove_btn)
-        video_btn_layout.addWidget(self.clear_btn)
-        video_btn_layout.addWidget(self.check_btn)
-        video_layout.addLayout(video_btn_layout)
+        btn_layout.addWidget(add_btn)
+        btn_layout.addWidget(folder_btn)
+        btn_layout.addWidget(remove_btn)
+        btn_layout.addWidget(clear_btn)
+        btn_layout.addWidget(check_btn)
+        btn_layout.addStretch()
         
+        video_layout.addLayout(btn_layout)
         video_group.setLayout(video_layout)
         layout.addWidget(video_group)
         
-        # Output settings
-        output_group = QGroupBox("Output Settings")
-        output_layout = QVBoxLayout()
-        output_layout.setSpacing(6)
-        output_layout.setContentsMargins(8, 8, 8, 8)
+        # --- Output Settings ---
+        settings_group = QGroupBox("Output Settings")
+        settings_layout = QFormLayout()
+        settings_layout.setContentsMargins(16, 24, 16, 16)
+        settings_layout.setSpacing(12)
         
-        # Output folder
-        folder_layout = QHBoxLayout()
-        folder_layout.setSpacing(4)
-        
-        folder_label = QLabel("Output Folder:")
-        folder_label.setFixedWidth(100)
+        # Output Folder
+        out_layout = QHBoxLayout()
         self.output_input = QLineEdit()
-        self.output_input.setPlaceholderText("Select output folder for cleaned videos")
-        output_browse_btn = QPushButton("Browse")
-        output_browse_btn.setObjectName(SECONDARY_BUTTON)
-        output_browse_btn.setFixedWidth(80)
-        output_browse_btn.clicked.connect(self.browse_output)
-        
-        folder_layout.addWidget(folder_label)
-        folder_layout.addWidget(self.output_input)
-        folder_layout.addWidget(output_browse_btn)
-        output_layout.addLayout(folder_layout)
-        
-        # Encoding settings
-        settings_layout = QGridLayout()
-        settings_layout.setSpacing(6)
-        settings_layout.setColumnStretch(1, 1)
-        settings_layout.setColumnStretch(3, 1)
+        self.output_input.setPlaceholderText("Select destination folder...")
+        browse_out_btn = QPushButton("Browse")
+        browse_out_btn.setObjectName(SECONDARY_BUTTON)
+        browse_out_btn.clicked.connect(self.browse_output)
+        out_layout.addWidget(self.output_input)
+        out_layout.addWidget(browse_out_btn)
+        settings_layout.addRow("Output Folder:", out_layout)
         
         # Codec
-        codec_label = QLabel("Codec:")
-        codec_label.setFixedWidth(100)
         self.codec_combo = QComboBox()
         self.codec_combo.addItems(['libx264', 'libx265', 'h264_nvenc'])
         self.codec_combo.setCurrentText('libx264')
-        settings_layout.addWidget(codec_label, 0, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.codec_combo, 0, 1)
+        settings_layout.addRow("Codec:", self.codec_combo)
         
-        # Quality (CRF)
-        crf_label = QLabel("Quality (CRF):")
-        crf_label.setFixedWidth(100)
+        # CRF
         self.crf_spin = QSpinBox()
         self.crf_spin.setRange(0, 51)
         self.crf_spin.setValue(18)
         self.crf_spin.setToolTip("Lower = better quality (18 recommended, 23 default)")
-        settings_layout.addWidget(crf_label, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.crf_spin, 0, 3)
+        settings_layout.addRow("Quality (CRF):", self.crf_spin)
         
         # Preset
-        preset_label = QLabel("Speed Preset:")
-        preset_label.setFixedWidth(100)
         self.preset_combo = QComboBox()
         self.preset_combo.addItems(['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'])
         self.preset_combo.setCurrentText('medium')
-        self.preset_combo.setToolTip("Slower = better compression")
-        settings_layout.addWidget(preset_label, 1, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        settings_layout.addWidget(self.preset_combo, 1, 1, 1, 3)
+        settings_layout.addRow("Speed Preset:", self.preset_combo)
         
-        output_layout.addLayout(settings_layout)
-        output_group.setLayout(output_layout)
-        layout.addWidget(output_group)
+        settings_group.setLayout(settings_layout)
+        layout.addWidget(settings_group)
         
-        # Progress
-        progress_group = QGroupBox("Progress")
-        progress_layout = QVBoxLayout()
-        progress_layout.setSpacing(6)
-        progress_layout.setContentsMargins(8, 8, 8, 8)
-        
-        self.progress_label = QLabel("Ready")
-        progress_layout.addWidget(self.progress_label)
-        
+        # --- Progress ---
         self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        progress_layout.addWidget(self.progress_bar)
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
         
-        progress_group.setLayout(progress_layout)
-        layout.addWidget(progress_group)
+        self.status_label = QLabel("Ready")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_label)
         
-        # Clean button
-        self.clean_btn = QPushButton("Clean Videos")
-        self.clean_btn.setFixedHeight(32)
+        # Clean Button
+        self.clean_btn = QPushButton("Start Cleaning Process")
+        self.clean_btn.setMinimumHeight(40)
         self.clean_btn.clicked.connect(self.clean_videos)
         layout.addWidget(self.clean_btn)
         
@@ -209,33 +184,30 @@ class CleanVideoTab(QWidget):
             "",
             "Video Files (*.mp4 *.avi *.mov *.mkv *.flv *.wmv)"
         )
-        for path in file_paths:
-            if path not in [self.video_list.item(i).text() 
-                           for i in range(self.video_list.count())]:
-                self.video_list.addItem(path)
+        if file_paths:
+            existing = [self.video_list.item(i).text() for i in range(self.video_list.count())]
+            for path in file_paths:
+                if path not in existing:
+                    self.video_list.addItem(path)
     
     def add_folder(self):
         """Add all videos from a folder"""
-        folder = QFileDialog.getExistingDirectory(
-            self,
-            "Select Folder with Videos"
-        )
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder with Videos")
         if folder:
             folder_path = Path(folder)
             video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
+            existing = [self.video_list.item(i).text() for i in range(self.video_list.count())]
             
             for ext in video_extensions:
                 for video in folder_path.glob(f'*{ext}'):
                     video_str = str(video)
-                    if video_str not in [self.video_list.item(i).text() 
-                                        for i in range(self.video_list.count())]:
+                    if video_str not in existing:
                         self.video_list.addItem(video_str)
     
     def remove_video(self):
-        """Remove selected video"""
-        current = self.video_list.currentRow()
-        if current >= 0:
-            self.video_list.takeItem(current)
+        """Remove selected videos"""
+        for item in self.video_list.selectedItems():
+            self.video_list.takeItem(self.video_list.row(item))
     
     def clear_videos(self):
         """Clear all videos"""
@@ -243,10 +215,7 @@ class CleanVideoTab(QWidget):
     
     def browse_output(self):
         """Browse for output folder"""
-        folder = QFileDialog.getExistingDirectory(
-            self,
-            "Select Output Folder"
-        )
+        folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
         if folder:
             self.output_input.setText(folder)
     
@@ -256,6 +225,10 @@ class CleanVideoTab(QWidget):
             QMessageBox.warning(self, "No Videos", "Please add videos first")
             return
         
+        self.status_label.setText("Checking integrity...")
+        self.set_busy(True)
+        
+        # This could be threaded but fast enough for small lists usually
         results = []
         for i in range(self.video_list.count()):
             video_path = self.video_list.item(i).text()
@@ -266,6 +239,9 @@ class CleanVideoTab(QWidget):
                 results.append(f"✓ {video_name}: {info['width']}x{info['height']}, {info['fps']:.2f} fps")
             else:
                 results.append(f"✗ {video_name}: Could not read metadata (possibly corrupted)")
+        
+        self.set_busy(False)
+        self.status_label.setText("Integrity check complete.")
         
         QMessageBox.information(
             self,
@@ -297,9 +273,9 @@ class CleanVideoTab(QWidget):
         if reply != QMessageBox.StandardButton.Yes:
             return
         
-        self.clean_btn.setEnabled(False)
+        self.set_busy(True)
         self.progress_bar.setValue(0)
-        self.progress_label.setText("Starting...")
+        self.status_label.setText("Starting cleaning process...")
         
         self.worker = VideoCleanWorker(
             videos,
@@ -317,13 +293,13 @@ class CleanVideoTab(QWidget):
         """Handle progress update"""
         progress = int((current / total) * 100)
         self.progress_bar.setValue(progress)
-        self.progress_label.setText(f"Processing {current}/{total}: {filename}")
+        self.status_label.setText(f"Processing {current}/{total}: {filename}")
     
     def on_finished(self):
         """Handle cleaning completion"""
-        self.clean_btn.setEnabled(True)
+        self.set_busy(False)
         self.progress_bar.setValue(100)
-        self.progress_label.setText("Completed!")
+        self.status_label.setText("Completed!")
         QMessageBox.information(
             self,
             "Success",
@@ -333,6 +309,14 @@ class CleanVideoTab(QWidget):
     
     def on_error(self, error: str):
         """Handle cleaning error"""
-        self.clean_btn.setEnabled(True)
-        self.progress_label.setText("Error occurred")
+        self.set_busy(False)
+        self.status_label.setText("Error occurred during cleaning.")
         QMessageBox.critical(self, "Error", f"Video cleaning failed:\n{error}")
+        
+    def set_busy(self, busy: bool):
+        """Toggle UI state"""
+        self.clean_btn.setEnabled(not busy)
+        if busy:
+            self.progress_bar.show()
+        else:
+            self.progress_bar.hide()
