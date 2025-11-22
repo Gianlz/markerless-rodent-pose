@@ -13,3 +13,4 @@ wheels/
 .cursor/
 .kiro
 tests
+.pytest_cache
