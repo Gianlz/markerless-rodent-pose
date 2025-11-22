@@ -8,15 +8,45 @@ import yaml
 class LabelManager:
     """Handles frame labeling, keypoint CRUD, and skeleton building"""
     
-    def label_frames(self, config: str) -> None:
+    def label_frames(self, config: str, video: Optional[str] = None) -> None:
         """
         Launch DeepLabCut labeling GUI
         
         Args:
             config: Path to config.yaml
+            video: Name of the video folder to label (inside labeled-data)
         """
-        deeplabcut.label_frames(config)
+        if video:
+            deeplabcut.label_frames(config, image_folder=video)
+        else:
+            deeplabcut.label_frames(config)
     
+    def get_videos(self, config: str) -> list[str]:
+        """Get list of video folders in labeled-data"""
+        try:
+            project_path = Path(config).parent
+            labeled_data_path = project_path / 'labeled-data'
+            
+            if not labeled_data_path.exists():
+                return []
+            
+            return [d.name for d in labeled_data_path.iterdir() if d.is_dir() and not d.name.startswith('.')]
+        except Exception:
+            return []
+
+    def get_bodyparts(self, config: str) -> list[str]:
+        """Get list of video folders in labeled-data"""
+        try:
+            project_path = Path(config).parent
+            labeled_data_path = project_path / 'labeled-data'
+            
+            if not labeled_data_path.exists():
+                return []
+            
+            return [d.name for d in labeled_data_path.iterdir() if d.is_dir() and not d.name.startswith('.')]
+        except Exception:
+            return []
+
     def get_bodyparts(self, config: str) -> list[str]:
         """Get list of bodyparts from config"""
         with open(config, 'r') as f:

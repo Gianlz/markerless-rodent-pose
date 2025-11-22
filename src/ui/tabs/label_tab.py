@@ -43,6 +43,19 @@ class LabelTab(QWidget):
         config_group.setLayout(config_layout)
         layout.addWidget(config_group)
         
+        # --- Video Selection ---
+        video_group = QGroupBox("Select Video to Label")
+        video_layout = QHBoxLayout()
+        video_layout.setContentsMargins(16, 24, 16, 16)
+        
+        self.video_combo = QComboBox()
+        self.video_combo.setPlaceholderText("Select a video folder...")
+        video_layout.addWidget(QLabel("Video Folder:"))
+        video_layout.addWidget(self.video_combo, 1)
+        
+        video_group.setLayout(video_layout)
+        layout.addWidget(video_group)
+        
         # --- Labeling Actions ---
         action_group = QGroupBox("Labeling Actions")
         action_layout = QHBoxLayout()
@@ -159,7 +172,22 @@ class LabelTab(QWidget):
         if config:
             self.load_keypoints()
             self.load_skeleton()
+            self.load_videos()
     
+    def load_videos(self):
+        """Load videos from labeled-data"""
+        config = self.config_input.text()
+        valid, _ = validate_config_path(config)
+        if not valid: return
+        
+        try:
+            videos = self.label_manager.get_videos(config)
+            self.video_combo.clear()
+            self.video_combo.addItem("All Videos (Default)", None)
+            self.video_combo.addItems(videos)
+        except Exception:
+            pass
+
     def load_keypoints(self):
         """Load keypoints from config"""
         config = self.config_input.text()
@@ -201,8 +229,15 @@ class LabelTab(QWidget):
             QMessageBox.warning(self, "Validation Error", error)
             return
         
+        # Get selected video
+        selected_video = self.video_combo.currentText()
+        if selected_video == "All Videos (Default)" or not selected_video:
+            video_arg = None
+        else:
+            video_arg = selected_video
+        
         try:
-            self.label_manager.label_frames(config)
+            self.label_manager.label_frames(config, video=video_arg)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to launch labeling GUI:\n{str(e)}")
     

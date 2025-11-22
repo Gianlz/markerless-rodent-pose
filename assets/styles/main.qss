@@ -207,6 +207,7 @@ QListWidget, QTreeWidget, QTableWidget {
     border: 1px solid #d1d5db;
     border-radius: 6px;
     background-color: #ffffff;
+    alternate-background-color: #f9fafb; /* Gray 50 - Fix for alternating rows */
     padding: 4px;
 }
 
