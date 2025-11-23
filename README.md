@@ -193,32 +193,6 @@ skeleton = [
 - **ImageNet** - General transfer learning
 - **Random** - Train from scratch (requires more data)
 
-## Project Structure
-
-```
-markerless-rodent-pose/
-├── src/
-│   ├── ui/                    # PySide6 GUI components
-│   │   ├── tabs/              # 9 workflow tabs
-│   │   └── styles/            # Theme and stylesheets
-│   ├── core/                  # DeepLabCut wrappers
-│   │   ├── frame_extractor.py
-│   │   ├── project_manager.py
-│   │   ├── label_manager.py
-│   │   ├── training_manager.py
-│   │   ├── train_manager.py
-│   │   └── inference_manager.py
-│   └── utils/                 # Utilities
-│       ├── validators.py
-│       └── video_utils.py
-├── assets/                    # UI assets
-│   └── styles/
-├── tests/                     # E2E tests
-│   └── e2e/
-├── main.py                    # Application entry point
-├── pyproject.toml             # Dependencies
-└── README.md
-```
 
 ## Testing
 
