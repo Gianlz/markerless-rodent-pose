@@ -1,36 +1,43 @@
 """Main application window"""
+
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QStatusBar
-from PySide6.QtCore import Qt
 
 from .tabs import (
-    CleanVideoTab, ProjectTab, ExtractTab, OutlierTab, 
-    LabelTab, TrainingTab, TrainTab, InferenceTab, SystemInfoTab
+    CleanVideoTab,
+    ProjectTab,
+    ExtractTab,
+    OutlierTab,
+    LabelTab,
+    TrainingTab,
+    TrainTab,
+    InferenceTab,
+    SystemInfoTab,
 )
 
 
 class MainWindow(QMainWindow):
     """Main application window"""
-    
+
     def __init__(self):
         super().__init__()
         self.init_ui()
-    
+
     def init_ui(self):
         self.setWindowTitle("DeepLabCut Frame Extractor")
         self.setMinimumSize(900, 700)  # Slightly larger for modern spacing
-        
+
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
+
         # Main layout with padding
         layout = QVBoxLayout(central_widget)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(16)
-        
+
         # Create tabs
         self.tabs = QTabWidget()
-        self.tabs.setDocumentMode(True) # cleaner look on some platforms
-        
+        self.tabs.setDocumentMode(True)  # cleaner look on some platforms
+
         # Initialize tabs
         self.project_tab = ProjectTab()
         self.clean_video_tab = CleanVideoTab()
@@ -41,7 +48,7 @@ class MainWindow(QMainWindow):
         self.inference_tab = InferenceTab()
         self.outlier_tab = OutlierTab()
         self.system_info_tab = SystemInfoTab()
-        
+
         # Add tabs in logical order
         self.tabs.addTab(self.project_tab, "Project Manager")
         self.tabs.addTab(self.clean_video_tab, "Clean Videos")
@@ -52,17 +59,17 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.inference_tab, "Analyze Videos")
         self.tabs.addTab(self.outlier_tab, "Extract Outliers")
         self.tabs.addTab(self.system_info_tab, "System Info")
-        
+
         # Connect project creation to auto-fill config
         self.tabs.currentChanged.connect(self.on_tab_changed)
-        
+
         layout.addWidget(self.tabs)
 
         # Status Bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
-    
+
     def on_tab_changed(self, index: int):
         """Handle tab change to sync config paths"""
         config_path = self.project_tab.get_config_path()

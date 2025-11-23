@@ -1,4 +1,5 @@
 """DeepLabCut model training management"""
+
 from pathlib import Path
 from typing import Optional
 import logging
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class TrainManager:
     """Handles model training"""
-    
+
     def train_network(
         self,
         config: str,
@@ -21,11 +22,11 @@ class TrainManager:
         saveiters: int = 50000,
         maxiters: int = 200000,
         allow_growth: bool = True,
-        gputouse: Optional[int] = None
+        gputouse: Optional[int] = None,
     ) -> None:
         """
         Train the network
-        
+
         Args:
             config: Path to config.yaml
             shuffle: Shuffle index
@@ -37,15 +38,15 @@ class TrainManager:
             allow_growth: Allow GPU memory growth
             gputouse: GPU device to use (None for default)
         """
-        with open(config, 'r') as f:
+        with open(config, "r") as f:
             cfg = yaml.safe_load(f)
-        
-        init_weights = cfg.get('init_weights', 'imagenet')
-        net_type = cfg.get('net_type', 'resnet_50')
-        
-        logger.info("="*60)
+
+        init_weights = cfg.get("init_weights", "imagenet")
+        net_type = cfg.get("net_type", "resnet_50")
+
+        logger.info("=" * 60)
         logger.info("STARTING TRAINING")
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info(f"Network: {net_type}")
         logger.info(f"Init Weights: {init_weights}")
         logger.info(f"Shuffle: {shuffle}")
@@ -53,17 +54,17 @@ class TrainManager:
         logger.info(f"Display Iterations: {displayiters}")
         logger.info(f"Save Iterations: {saveiters}")
         logger.info(f"Snapshots to Keep: {max_snapshots_to_keep}")
-        
-        if init_weights == 'superanimal':
+
+        if init_weights == "superanimal":
             logger.warning("SuperAnimal weights must be set during dataset creation!")
             logger.warning("If you created the training dataset with ImageNet weights,")
             logger.warning("you need to recreate it with SuperAnimal weights selected.")
-        
-        logger.info("="*60)
-        
+
+        logger.info("=" * 60)
+
         epochs = maxiters
         save_epochs = saveiters
-        
+
         deeplabcut.train_network(
             config,
             shuffle=shuffle,
@@ -73,94 +74,94 @@ class TrainManager:
             save_epochs=save_epochs,
             epochs=epochs,
             allow_growth=allow_growth,
-            gputouse=gputouse
+            gputouse=gputouse,
         )
-    
+
     def get_available_shuffles(self, config: str) -> list[int]:
         """Get list of available shuffles from training-datasets"""
         project_path = Path(config).parent
-        training_datasets_path = project_path / 'training-datasets'
-        
+        training_datasets_path = project_path / "training-datasets"
+
         if not training_datasets_path.exists():
             return [1]
-        
+
         # Look for latest iteration
-        iterations = list(training_datasets_path.glob('iteration-*'))
+        iterations = list(training_datasets_path.glob("iteration-*"))
         if not iterations:
             return [1]
-        
+
         latest = sorted(iterations)[-1]
-        
+
         # Find shuffle folders
         shuffles = set()
         for folder in latest.iterdir():
-            if folder.is_dir() and 'shuffle' in folder.name:
+            if folder.is_dir() and "shuffle" in folder.name:
                 # Extract shuffle number from folder name
-                parts = folder.name.split('shuffle')
+                parts = folder.name.split("shuffle")
                 if len(parts) > 1:
                     try:
-                        shuffle_num = int(parts[1].split('_')[0])
+                        shuffle_num = int(parts[1].split("_")[0])
                         shuffles.add(shuffle_num)
                     except (ValueError, IndexError):
                         pass
-        
+
         return sorted(list(shuffles)) if shuffles else [1]
-    
+
     def get_available_snapshots(self, config: str, shuffle: int = 1) -> list[str]:
         """Get list of available training snapshots"""
         project_path = Path(config).parent
-        
+
         # Find the training folder
-        training_datasets_path = project_path / 'training-datasets'
+        training_datasets_path = project_path / "training-datasets"
         if not training_datasets_path.exists():
             return []
-        
-        iterations = list(training_datasets_path.glob('iteration-*'))
+
+        iterations = list(training_datasets_path.glob("iteration-*"))
         if not iterations:
             return []
-        
+
         latest = sorted(iterations)[-1]
-        
+
         # Find shuffle folder
-        shuffle_folders = list(latest.glob(f'*shuffle{shuffle}*'))
+        shuffle_folders = list(latest.glob(f"*shuffle{shuffle}*"))
         if not shuffle_folders:
             return []
-        
+
         shuffle_folder = shuffle_folders[0]
-        
+
         # Look for train folder
-        train_folder = shuffle_folder / 'train'
+        train_folder = shuffle_folder / "train"
         if not train_folder.exists():
             return []
-        
+
         # Find snapshot files
         snapshots = []
-        for snapshot in train_folder.glob('snapshot-*.index'):
+        for snapshot in train_folder.glob("snapshot-*.index"):
             snapshot_name = snapshot.stem  # Remove .index extension
             snapshots.append(snapshot_name)
-        
+
         return sorted(snapshots)
-    
+
     def get_training_info(self, config: str) -> dict:
         """Get training configuration info"""
-        with open(config, 'r') as f:
+        with open(config, "r") as f:
             cfg = yaml.safe_load(f)
-        
+
         project_path = Path(config).parent
-        training_datasets_path = project_path / 'training-datasets'
-        
+        training_datasets_path = project_path / "training-datasets"
+
         info = {
-            'project_path': str(project_path),
-            'net_type': cfg.get('net_type', 'resnet_50'),
-            'init_weights': cfg.get('init_weights', 'imagenet'),
-            'multianimal': cfg.get('multianimalproject', False),
-            'training_dataset_exists': training_datasets_path.exists()
+            "project_path": str(project_path),
+            "net_type": cfg.get("net_type", "resnet_50"),
+            "init_weights": cfg.get("init_weights", "imagenet"),
+            "multianimal": cfg.get("multianimalproject", False),
+            "training_dataset_exists": training_datasets_path.exists(),
         }
-        
+
         return info
-    
+
     def is_multianimal_project(self, config: str) -> bool:
         """Check if project is multi-animal"""
-        with open(config, 'r') as f:
+        with open(config, "r") as f:
             cfg = yaml.safe_load(f)
-        return cfg.get('multianimalproject', False)
+        return cfg.get("multianimalproject", False)

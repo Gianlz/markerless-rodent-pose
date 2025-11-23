@@ -1,4 +1,5 @@
 """Tab widgets"""
+
 from .clean_video_tab import CleanVideoTab
 from .project_tab import ProjectTab
 from .extract_tab import ExtractTab
@@ -9,4 +10,14 @@ from .train_tab import TrainTab
 from .inference_tab import InferenceTab
 from .system_info_tab import SystemInfoTab
 
-__all__ = ['CleanVideoTab', 'ProjectTab', 'ExtractTab', 'OutlierTab', 'LabelTab', 'TrainingTab', 'TrainTab', 'InferenceTab', 'SystemInfoTab']
+__all__ = [
+    "CleanVideoTab",
+    "ProjectTab",
+    "ExtractTab",
+    "OutlierTab",
+    "LabelTab",
+    "TrainingTab",
+    "TrainTab",
+    "InferenceTab",
+    "SystemInfoTab",
+]

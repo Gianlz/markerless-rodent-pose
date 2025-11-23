@@ -1,4 +1,5 @@
 """UI styles and themes"""
+
 from .theme import (
     load_stylesheet,
     SECONDARY_BUTTON,
