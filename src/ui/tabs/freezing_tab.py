@@ -136,7 +136,7 @@ class AnalysisWorker(QThread):
 
             # Event logging
             events = []
-            current_state = None  # 'A', 'B', or None
+            current_state = None  # 'A', 'B'
             state_start_frame = 0
 
             # Iterate through frames
@@ -179,17 +179,25 @@ class AnalysisWorker(QThread):
                         )  # Green for A, Blue for B
                         cv2.circle(frame, (int(x), int(y)), 5, color, -1)
 
-                # Determine state for this frame
-                frame_state = None
+                # Determine detected state for this frame (Instantaneous)
+                detected_state = None
                 if paws_on_side_a == 4:
-                    frame_state = "A"
+                    detected_state = "A"
                 elif paws_on_side_b == 4:
-                    frame_state = "B"
+                    detected_state = "B"
 
-                # Check for state change
-                if frame_state != current_state:
-                    if current_state is not None:
-                        # End previous event
+                # State Machine Logic
+                if current_state is None:
+                    # Initialize state if we have a definitive detection
+                    if detected_state is not None:
+                        current_state = detected_state
+                        state_start_frame = i
+                else:
+                    # We have a current state, check for transition
+                    # Only transition if we strictly detect the OTHER side (4 paws)
+                    if detected_state is not None and detected_state != current_state:
+                        # State changed!
+                        # Log previous event
                         duration_frames = i - state_start_frame
                         events.append(
                             {
@@ -200,14 +208,22 @@ class AnalysisWorker(QThread):
                             }
                         )
 
-                    # Start new event
-                    current_state = frame_state
-                    state_start_frame = i
+                        # Update state
+                        current_state = detected_state
+                        state_start_frame = i
+
+                # Accumulate frames based on PERSISTENT state
+                if current_state == "A":
+                    side_a_frames += 1
+                elif current_state == "B":
+                    side_b_frames += 1
 
                 # Write frame with overlay
                 if writer:
                     # Draw Side Label
-                    label_text = f"Side: {frame_state if frame_state else 'None'}"
+                    label_text = (
+                        f"Side: {current_state if current_state else 'Unknown'}"
+                    )
                     cv2.putText(
                         frame,
                         label_text,
@@ -254,12 +270,11 @@ class AnalysisWorker(QThread):
 
             side_a_time = side_a_frames / fps
             side_b_time = side_b_frames / fps
-
             # Prepare output
             output_path = video_path.parent / f"{video_path.stem}_freezing_test.xlsx"
 
             with pd.ExcelWriter(output_path) as writer:
-                # Summary Sheet
+                # Summary Data
                 summary_data = {
                     "Video": [video_path.name],
                     "Side A Total Time (s)": [side_a_time],
@@ -267,19 +282,24 @@ class AnalysisWorker(QThread):
                     "Total Video Time (s)": [total_frames / fps],
                     "FPS": [fps],
                 }
-                pd.DataFrame(summary_data).to_excel(
-                    writer, sheet_name="Summary", index=False
+                summary_df = pd.DataFrame(summary_data)
+
+                # Events Data
+                if events:
+                    events_df = pd.DataFrame(events)
+                else:
+                    events_df = pd.DataFrame({"Message": ["No events detected"]})
+
+                # Write to single sheet "Analysis"
+                # Summary at the top
+                summary_df.to_excel(
+                    writer, sheet_name="Analysis", index=False, startrow=0
                 )
 
-                # Events Sheet
-                if events:
-                    pd.DataFrame(events).to_excel(
-                        writer, sheet_name="Events", index=False
-                    )
-                else:
-                    pd.DataFrame({"Message": ["No events detected"]}).to_excel(
-                        writer, sheet_name="Events", index=False
-                    )
+                # Detailed Events below
+                events_df.to_excel(
+                    writer, sheet_name="Analysis", index=False, startrow=3
+                )
 
             msg = f"Analysis saved to:\n{output_path}"
             if self.create_video:
