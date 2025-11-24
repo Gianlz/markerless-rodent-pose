@@ -17,10 +17,30 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QAbstractItemView,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 
 from ...core.project_manager import ProjectManager
 from ..styles import SECONDARY_BUTTON, SUCCESS_LABEL, ERROR_LABEL, INFO_LABEL
+
+
+class ProjectCreationWorker(QThread):
+    """Worker thread for project creation"""
+
+    finished = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, project_manager, **kwargs):
+        super().__init__()
+        self.project_manager = project_manager
+        self.kwargs = kwargs
+
+    def run(self):
+        try:
+            config_path = self.project_manager.create_project(**self.kwargs)
+            self.finished.emit(config_path)
+        except Exception as e:
+            self.error.emit(str(e))
+
 
 
 class ProjectTab(QWidget):
@@ -195,33 +215,39 @@ class ProjectTab(QWidget):
             return
 
         self.create_btn.setEnabled(False)
-        self.show_info("Creating project...")
+        self.show_info("Creating project... This may take a while if copying videos.")
 
-        try:
-            config_path = self.project_manager.create_project(
-                project_name=project_name,
-                experimenter=experimenter,
-                videos=videos,
-                working_directory=working_dir,
-                copy_videos=self.copy_videos_check.isChecked(),
-                multianimal=self.multianimal_check.isChecked(),
-            )
+        kwargs = {
+            "project_name": project_name,
+            "experimenter": experimenter,
+            "videos": videos,
+            "working_directory": working_dir,
+            "copy_videos": self.copy_videos_check.isChecked(),
+            "multianimal": self.multianimal_check.isChecked(),
+        }
 
-            self.config_created = config_path
-            self.show_success(f"Project created successfully!\nConfig: {config_path}")
+        self.worker = ProjectCreationWorker(self.project_manager, **kwargs)
+        self.worker.finished.connect(self.on_project_created)
+        self.worker.error.connect(self.on_project_creation_error)
+        self.worker.start()
 
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Project created successfully!\n\nConfig: {config_path}\n\nSubfolders:\n→ models/\n→ frames/\n→ output/\n→ dataset/",
-            )
+    def on_project_created(self, config_path: str):
+        """Handle successful project creation"""
+        self.create_btn.setEnabled(True)
+        self.config_created = config_path
+        self.show_success(f"Project created successfully!\nConfig: {config_path}")
 
-        except Exception as e:
-            self.show_error(f"Failed to create project: {str(e)}")
-            QMessageBox.critical(self, "Error", f"Failed to create project:\n{str(e)}")
+        QMessageBox.information(
+            self,
+            "Success",
+            f"Project created successfully!\n\nConfig: {config_path}\n\nSubfolders:\n→ models/\n→ frames/\n→ output/\n→ dataset/",
+        )
 
-        finally:
-            self.create_btn.setEnabled(True)
+    def on_project_creation_error(self, error_msg: str):
+        """Handle project creation error"""
+        self.create_btn.setEnabled(True)
+        self.show_error(f"Failed to create project: {error_msg}")
+        QMessageBox.critical(self, "Error", f"Failed to create project:\n{error_msg}")
 
     def get_config_path(self) -> str:
         """Get created config path"""

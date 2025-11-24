@@ -127,10 +127,10 @@ class FrameExtractor:
             frame_count = 0
             logger.info(f"Sampling with step={step}")
             while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
                 if frame_count % step == 0:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
                     # Resize
                     h, w = frame.shape[:2]
                     new_h = int(h * resize_width / w)
@@ -145,6 +145,9 @@ class FrameExtractor:
                     valid_indices.append(frame_count)
                     if len(frames_data) % 100 == 0:
                         logger.info(f"Sampled {len(frames_data)} frames")
+                else:
+                    if not cap.grab():
+                        break
                 frame_count += 1
             cap.release()
             logger.info(f"Sampled {len(frames_data)} valid frames")
