@@ -1,8 +1,6 @@
 """Freezing Test Tab"""
 
 import cv2
-import pandas as pd
-import numpy as np
 from pathlib import Path
 from PySide6.QtCore import Qt, QThread, Signal, QPoint
 from PySide6.QtGui import QImage, QPixmap, QPainter, QPen
@@ -21,7 +19,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
 )
 
-from ...core.inference_manager import InferenceManager
+from ...core.freezing_manager import FreezingManager
 from ...utils.validators import validate_config_path
 from ..styles import SECONDARY_BUTTON
 
@@ -47,271 +45,31 @@ class AnalysisWorker(QThread):
         self.line_points = line_points
         self.force_analysis = force_analysis
         self.create_video = create_video
-        self.manager = InferenceManager()
+        self.manager = FreezingManager()
 
     def run(self):
         try:
-            self.progress.emit("Checking analysis status...")
-            video_path = Path(self.video_path)
+            # Convert QPoints to tuples
+            points = [(p.x(), p.y()) for p in self.line_points]
 
-            # Check if analysis is needed
-            analysis_exists = self.manager.check_analysis_exists(
-                str(video_path), self.config_path
+            output_path = self.manager.run_freezing_analysis(
+                video_path=self.video_path,
+                config_path=self.config_path,
+                line_points=points,
+                force_analysis=self.force_analysis,
+                create_video=self.create_video,
+                progress_callback=self.progress.emit,
             )
-
-            if self.force_analysis or not analysis_exists:
-                self.progress.emit(
-                    "Running DeepLabCut analysis (this may take time)..."
-                )
-                self.manager.analyze_videos(
-                    self.config_path, [str(video_path)], save_as_csv=True
-                )
-
-            self.progress.emit("Loading data...")
-
-            # Find analysis file
-            h5_files = list(video_path.parent.glob(f"{video_path.stem}DLC*.h5"))
-            if not h5_files:
-                raise FileNotFoundError(
-                    "No analysis file found even after running analysis."
-                )
-
-            # Use the most recent one if multiple
-            h5_file = sorted(h5_files)[-1]
-
-            df = pd.read_hdf(h5_file)
-
-            # Get scorer and bodyparts
-            scorer = df.columns.levels[0][0]
-            bodyparts = df.columns.levels[1]
-
-            # Check for required bodyparts
-            required_paws = ["FR_paw", "FL_paw", "BR_paw", "BL_paw"]
-            for paw in required_paws:
-                if paw not in bodyparts:
-                    raise ValueError(
-                        f"Missing bodypart: {paw}. Model must have: {required_paws}"
-                    )
-
-            self.progress.emit("Analyzing frames...")
-
-            # Define line
-            p1 = np.array([self.line_points[0].x(), self.line_points[0].y()])
-            p2 = np.array([self.line_points[1].x(), self.line_points[1].y()])
-
-            # Vector representing the line
-            line_vec = p2 - p1
-
-            # Normal vector to the line (for determining side)
-            # Rotate 90 degrees
-            normal_vec = np.array([-line_vec[1], line_vec[0]])
-
-            def get_side(point):
-                # Dot product with normal vector determines side
-                # point is (x, y)
-                vec_to_point = point - p1
-                return np.sign(np.dot(vec_to_point, normal_vec))
-
-            # Open Video Capture
-            cap = cv2.VideoCapture(str(video_path))
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-            if not fps or np.isnan(fps):
-                fps = 30.0  # Fallback
-
-            # Setup Video Writer if requested
-            writer = None
-            if self.create_video:
-                output_video_path = video_path.parent / f"{video_path.stem}_labeled.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                writer = cv2.VideoWriter(
-                    str(output_video_path), fourcc, fps, (width, height)
-                )
-
-            total_frames = len(df)
-            side_a_frames = 0
-            side_b_frames = 0
-
-            # Event logging
-            events = []
-            current_state = None  # 'A', 'B'
-            state_start_frame = 0
-
-            # Iterate through frames
-            for i in range(total_frames):
-                ret, frame = cap.read()
-                if not ret:
-                    break
-
-                paws_on_side_a = 0
-                paws_on_side_b = 0
-
-                # Draw center line on frame
-                if writer:
-                    cv2.line(
-                        frame,
-                        (int(p1[0]), int(p1[1])),
-                        (int(p2[0]), int(p2[1])),
-                        (0, 0, 255),  # Red
-                        2,
-                    )
-
-                for paw in required_paws:
-                    x = df.iloc[i][(scorer, paw, "x")]
-                    y = df.iloc[i][(scorer, paw, "y")]
-                    likelihood = df.iloc[i][(scorer, paw, "likelihood")]
-
-                    if likelihood < 0.1:
-                        continue
-
-                    side = get_side(np.array([x, y]))
-                    if side > 0:
-                        paws_on_side_a += 1
-                    else:
-                        paws_on_side_b += 1
-
-                    # Draw paw points
-                    if writer:
-                        color = (
-                            (0, 255, 0) if side > 0 else (255, 0, 0)
-                        )  # Green for A, Blue for B
-                        cv2.circle(frame, (int(x), int(y)), 5, color, -1)
-
-                # Determine detected state for this frame (Instantaneous)
-                detected_state = None
-                if paws_on_side_a == 4:
-                    detected_state = "A"
-                elif paws_on_side_b == 4:
-                    detected_state = "B"
-
-                # State Machine Logic
-                if current_state is None:
-                    # Initialize state if we have a definitive detection
-                    if detected_state is not None:
-                        current_state = detected_state
-                        state_start_frame = i
-                else:
-                    # We have a current state, check for transition
-                    # Only transition if we strictly detect the OTHER side (4 paws)
-                    if detected_state is not None and detected_state != current_state:
-                        # State changed!
-                        # Log previous event
-                        duration_frames = i - state_start_frame
-                        events.append(
-                            {
-                                "Start Time (s)": state_start_frame / fps,
-                                "End Time (s)": i / fps,
-                                "Duration (s)": duration_frames / fps,
-                                "Side": current_state,
-                            }
-                        )
-
-                        # Update state
-                        current_state = detected_state
-                        state_start_frame = i
-
-                # Accumulate frames based on PERSISTENT state
-                if current_state == "A":
-                    side_a_frames += 1
-                elif current_state == "B":
-                    side_b_frames += 1
-
-                # Write frame with overlay
-                if writer:
-                    # Draw Side Label
-                    label_text = (
-                        f"Side: {current_state if current_state else 'Unknown'}"
-                    )
-                    cv2.putText(
-                        frame,
-                        label_text,
-                        (50, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.5,
-                        (0, 255, 255),  # Yellow
-                        3,
-                    )
-
-                    # Draw Stats
-                    stats_text = f"A: {side_a_frames} | B: {side_b_frames}"
-                    cv2.putText(
-                        frame,
-                        stats_text,
-                        (50, 100),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (255, 255, 255),
-                        2,
-                    )
-
-                    writer.write(frame)
-
-                # Update progress every 100 frames
-                if i % 100 == 0:
-                    self.progress.emit(f"Processing frame {i}/{total_frames}...")
-
-            cap.release()
-            if writer:
-                writer.release()
-
-            # Close last event
-            if current_state is not None:
-                duration_frames = total_frames - state_start_frame
-                events.append(
-                    {
-                        "Start Time (s)": state_start_frame / fps,
-                        "End Time (s)": total_frames / fps,
-                        "Duration (s)": duration_frames / fps,
-                        "Side": current_state,
-                    }
-                )
-
-            side_a_time = side_a_frames / fps
-            side_b_time = side_b_frames / fps
-            # Prepare output
-            output_path = video_path.parent / f"{video_path.stem}_freezing_test.xlsx"
-
-            with pd.ExcelWriter(output_path) as writer:
-                # Summary Data
-                summary_data = {
-                    "Video": [video_path.name],
-                    "Side A Total Time (s)": [side_a_time],
-                    "Side B Total Time (s)": [side_b_time],
-                    "Total Video Time (s)": [total_frames / fps],
-                    "FPS": [fps],
-                }
-                summary_df = pd.DataFrame(summary_data)
-
-                # Events Data
-                if events:
-                    events_df = pd.DataFrame(events)
-                else:
-                    events_df = pd.DataFrame({"Message": ["No events detected"]})
-
-                # Write to single sheet "Analysis"
-                # Summary at the top
-                summary_df.to_excel(
-                    writer, sheet_name="Analysis", index=False, startrow=0
-                )
-
-                # Detailed Events below
-                events_df.to_excel(
-                    writer, sheet_name="Analysis", index=False, startrow=3
-                )
 
             msg = f"Analysis saved to:\n{output_path}"
             if self.create_video:
+                video_path = Path(self.video_path)
+                output_video_path = video_path.parent / f"{video_path.stem}_labeled.mp4"
                 msg += f"\n\nLabeled video saved to:\n{output_video_path}"
 
             self.finished.emit(msg)
 
         except Exception as e:
-            if "cap" in locals():
-                cap.release()
-            if "writer" in locals() and writer:
-                writer.release()
             self.error.emit(str(e))
 
 
