@@ -7,6 +7,7 @@ from .tabs import (
     ProjectTab,
     ExtractTab,
     OutlierTab,
+    FreezingTab,
     LabelTab,
     TrainingTab,
     TrainTab,
@@ -47,6 +48,7 @@ class MainWindow(QMainWindow):
         self.train_tab = TrainTab()
         self.inference_tab = InferenceTab()
         self.outlier_tab = OutlierTab()
+        self.freezing_tab = FreezingTab()
         self.system_info_tab = SystemInfoTab()
 
         # Add tabs in logical order
@@ -58,6 +60,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.train_tab, "Train Network")
         self.tabs.addTab(self.inference_tab, "Analyze Videos")
         self.tabs.addTab(self.outlier_tab, "Extract Outliers")
+        self.tabs.addTab(self.freezing_tab, "Test")
         self.tabs.addTab(self.system_info_tab, "System Info")
 
         # Connect project creation to auto-fill config
@@ -80,3 +83,4 @@ class MainWindow(QMainWindow):
             self.train_tab.set_config_path(config_path)
             self.inference_tab.set_config_path(config_path)
             self.outlier_tab.set_config_path(config_path)
+            self.freezing_tab.set_config_path(config_path)
