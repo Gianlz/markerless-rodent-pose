@@ -185,11 +185,13 @@ class SystemInfoTab(QWidget):
             )
 
             try:
-                # Test GPU availability
                 faiss.StandardGpuResources()
-                info.append("FAISS GPU: Available")
+                info.append("FAISS GPU (CUDA): Available")
             except Exception:
-                info.append("FAISS GPU: Not available (CPU only)")
+                if torch.backends.mps.is_available():
+                    info.append("FAISS: CPU mode (MPS not supported by FAISS)")
+                else:
+                    info.append("FAISS GPU: Not available (CPU only)")
         except ImportError:
             info.append("\nFAISS: Not installed")
 

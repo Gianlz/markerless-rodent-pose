@@ -1,10 +1,15 @@
 """DeepLabCut Frame Extraction GUI Application"""
 
 import os
+import platform
 import sys
 
-# Fix napari black screen on Hyprland/Wayland
-os.environ["QT_QPA_PLATFORM"] = "xcb"
+# Set Qt platform based on OS
+if platform.system() == "Darwin":
+    os.environ["QT_QPA_PLATFORM"] = "cocoa"
+elif platform.system() == "Linux":
+    # Fix napari black screen on Hyprland/Wayland
+    os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication

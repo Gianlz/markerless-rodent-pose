@@ -9,6 +9,8 @@ import deeplabcut
 import numpy as np
 import yaml
 
+from ..utils.device import get_faiss_clustering, get_faiss_index, is_cuda_available
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -156,15 +158,15 @@ class FrameExtractor:
                     f"Requested {num_frames} frames but only {len(frames_data)} available"
                 )
                 num_frames = len(frames_data)
-            # FAISS CPU K-means
-            logger.info(f"Running FAISS CPU K-means with {num_frames} clusters")
+            # FAISS K-means (GPU if available)
+            use_gpu = is_cuda_available()
+            device_str = "GPU" if use_gpu else "CPU"
+            logger.info(f"Running FAISS {device_str} K-means with {num_frames} clusters")
             features = np.array(frames_data, dtype="float32")
             d = features.shape[1]
             logger.info(f"Feature dimension: {d}")
-            quantizer = faiss.IndexFlatL2(d)
-            kmeans = faiss.Clustering(d, num_frames)
-            kmeans.niter = 20
-            kmeans.verbose = True
+
+            kmeans, quantizer = get_faiss_clustering(d, num_frames, use_gpu=use_gpu)
             kmeans.train(features, quantizer)
             centroids = faiss.vector_float_to_array(kmeans.centroids)
             centroids = np.array(
@@ -172,7 +174,7 @@ class FrameExtractor:
             )
             # Find nearest frame to each centroid
             logger.info("Finding nearest frames to centroids")
-            index = faiss.IndexFlatL2(d)
+            index = get_faiss_index(d, use_gpu=use_gpu)
             index.add(features)
             D, nearest_indices = index.search(centroids, 1)
             selected_indices = [valid_indices[i] for i in nearest_indices.flatten()]
