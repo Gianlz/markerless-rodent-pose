@@ -136,6 +136,7 @@ class FreezingManager:
         events = []
         current_state = None  # 'A', 'B'
         state_start_frame = 0
+        first_detection_frame = None
 
         try:
             # Iterate through frames
@@ -191,6 +192,8 @@ class FreezingManager:
                     if detected_state is not None:
                         current_state = detected_state
                         state_start_frame = i
+                        if first_detection_frame is None:
+                            first_detection_frame = i
                 else:
                     # We have a current state, check for transition
                     # Only transition if we strictly detect the OTHER side (4 paws)
@@ -276,12 +279,18 @@ class FreezingManager:
         )
 
         with pd.ExcelWriter(output_path) as writer:
+            # Calculate effective total time (from first detection to end)
+            if first_detection_frame is not None:
+                effective_total_time = (total_frames - first_detection_frame) / fps
+            else:
+                effective_total_time = 0.0
+
             # Summary Data
             summary_data = {
                 "Video": [video_path_obj.name],
                 "Side A Total Time (s)": [side_a_time],
                 "Side B Total Time (s)": [side_b_time],
-                "Total Video Time (s)": [total_frames / fps],
+                "Total Video Time (s)": [effective_total_time],
                 "FPS": [fps],
             }
             summary_df = pd.DataFrame(summary_data)

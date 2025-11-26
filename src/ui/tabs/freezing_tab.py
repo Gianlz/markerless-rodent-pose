@@ -1,22 +1,23 @@
 """Freezing Test Tab"""
 
-import cv2
 from pathlib import Path
-from PySide6.QtCore import Qt, QThread, Signal, QPoint
-from PySide6.QtGui import QImage, QPixmap, QPainter, QPen
+
+import cv2
+from PySide6.QtCore import QPoint, Qt, QThread, Signal
+from PySide6.QtGui import QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QCheckBox,
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
-    QPushButton,
     QLabel,
     QLineEdit,
-    QFileDialog,
+    QListWidget,
     QMessageBox,
     QProgressBar,
-    QGroupBox,
-    QListWidget,
-    QCheckBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
 
 from ...core.freezing_manager import FreezingManager
@@ -74,24 +75,89 @@ class AnalysisWorker(QThread):
 
 
 class VideoLabel(QLabel):
-    """Custom Label to handle drawing"""
+    """Custom Label to handle drawing with draggable center line"""
+
+    line_moved = Signal(int)  # Emits the new x position when line is moved
 
     def __init__(self):
         super().__init__()
         self.show_line = False
+        self.line_x = 0.5  # Line position as ratio (0.0 to 1.0)
+        self.dragging = False
+        self.hover_threshold = 10  # Pixels for hover detection
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumSize(640, 480)
         self.setStyleSheet("border: 1px solid #444; background-color: #222;")
+        self.setMouseTracking(True)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def get_line_pixel_x(self) -> int:
+        """Get the current line x position in pixels"""
+        return int(self.width() * self.line_x)
+
+    def set_line_ratio(self, ratio: float):
+        """Set line position as ratio (0.0 to 1.0)"""
+        self.line_x = max(0.0, min(1.0, ratio))
+        self.update()
+
+    def is_near_line(self, x: int) -> bool:
+        """Check if x coordinate is near the line"""
+        line_pixel_x = self.get_line_pixel_x()
+        return abs(x - line_pixel_x) <= self.hover_threshold
+
+    def mousePressEvent(self, event):
+        if self.show_line and event.button() == Qt.MouseButton.LeftButton:
+            if self.is_near_line(event.position().x()):
+                self.dragging = True
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = False
+            if self.show_line and self.is_near_line(event.position().x()):
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+        super().mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self.show_line:
+            if self.dragging:
+                # Update line position
+                new_x = event.position().x()
+                self.line_x = max(0.0, min(1.0, new_x / self.width()))
+                self.update()
+                self.line_moved.emit(self.get_line_pixel_x())
+            elif self.is_near_line(event.position().x()):
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+        super().mouseMoveEvent(event)
 
     def paintEvent(self, event):
         super().paintEvent(event)
         if self.show_line:
             painter = QPainter(self)
-            painter.setPen(QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.DashLine))
 
-            # Draw vertical line in the center
-            x = self.width() // 2
+            # Draw line with different style when hovering/dragging
+            if self.dragging:
+                painter.setPen(QPen(Qt.GlobalColor.yellow, 3, Qt.PenStyle.SolidLine))
+            else:
+                painter.setPen(QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.DashLine))
+
+            x = self.get_line_pixel_x()
             painter.drawLine(x, 0, x, self.height())
+
+            # Draw grab handles at top and bottom
+            handle_size = 8
+            painter.setBrush(
+                Qt.GlobalColor.red if not self.dragging else Qt.GlobalColor.yellow
+            )
+            painter.drawEllipse(x - handle_size // 2, 5, handle_size, handle_size)
+            painter.drawEllipse(
+                x - handle_size // 2, self.height() - 13, handle_size, handle_size
+            )
 
 
 class FreezingTab(QWidget):
@@ -102,6 +168,8 @@ class FreezingTab(QWidget):
         self.worker = None
         self.current_video_path = None
         self.analysis_points = None
+        self.video_width = 0
+        self.video_height = 0
         self.init_ui()
 
     def init_ui(self):
@@ -150,14 +218,15 @@ class FreezingTab(QWidget):
         layout.addWidget(video_group)
 
         # --- Video Preview ---
-        preview_group = QGroupBox("Video Preview (Auto-Split Center)")
+        preview_group = QGroupBox("Video Preview (Drag Line to Adjust)")
         preview_layout = QVBoxLayout()
 
         self.video_label = VideoLabel()
+        self.video_label.line_moved.connect(self.on_line_moved)
         preview_layout.addWidget(self.video_label)
 
         instr_label = QLabel(
-            "The video will be automatically split in the center for analysis."
+            "Drag the red center line to adjust the split position for analysis."
         )
         instr_label.setStyleSheet("color: #888;")
         preview_layout.addWidget(instr_label)
@@ -232,6 +301,8 @@ class FreezingTab(QWidget):
             # Convert to RGB
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             h, w, ch = frame.shape
+            self.video_width = w
+            self.video_height = h
             bytes_per_line = ch * w
             qt_image = QImage(
                 frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888
@@ -246,13 +317,27 @@ class FreezingTab(QWidget):
             )
             self.video_label.setPixmap(scaled_pixmap)
             self.video_label.show_line = True
+            self.video_label.set_line_ratio(0.5)  # Start at center
 
             # Calculate analysis points (Center Split)
-            center_x = w // 2
-            self.analysis_points = [QPoint(center_x, 0), QPoint(center_x, h)]
+            self.update_analysis_points()
 
         else:
             QMessageBox.warning(self, "Error", "Could not read video frame")
+
+    def update_analysis_points(self):
+        """Update analysis points based on current line position"""
+        if hasattr(self, "video_width") and hasattr(self, "video_height"):
+            # Convert display line position to actual video coordinates
+            video_x = int(self.video_width * self.video_label.line_x)
+            self.analysis_points = [
+                QPoint(video_x, 0),
+                QPoint(video_x, self.video_height),
+            ]
+
+    def on_line_moved(self, pixel_x: int):
+        """Handle line position changes"""
+        self.update_analysis_points()
 
     def run_analysis(self):
         if not self.current_video_path or not self.analysis_points:

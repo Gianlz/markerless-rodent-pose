@@ -1,18 +1,19 @@
 """Main application window"""
 
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QStatusBar
+from PySide6.QtWidgets import QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
 from .tabs import (
     CleanVideoTab,
-    ProjectTab,
+    EvaluationTab,
     ExtractTab,
-    OutlierTab,
     FreezingTab,
+    InferenceTab,
     LabelTab,
+    OutlierTab,
+    ProjectTab,
+    SystemInfoTab,
     TrainingTab,
     TrainTab,
-    InferenceTab,
-    SystemInfoTab,
 )
 
 
@@ -47,6 +48,7 @@ class MainWindow(QMainWindow):
         self.training_tab = TrainingTab()
         self.train_tab = TrainTab()
         self.inference_tab = InferenceTab()
+        self.evaluation_tab = EvaluationTab()
         self.outlier_tab = OutlierTab()
         self.freezing_tab = FreezingTab()
         self.system_info_tab = SystemInfoTab()
@@ -58,6 +60,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.label_tab, "Label Frames")
         self.tabs.addTab(self.training_tab, "Create Dataset")
         self.tabs.addTab(self.train_tab, "Train Network")
+        self.tabs.addTab(self.evaluation_tab, "Evaluate Model")
         self.tabs.addTab(self.inference_tab, "Analyze Videos")
         self.tabs.addTab(self.outlier_tab, "Extract Outliers")
         self.tabs.addTab(self.freezing_tab, "Test")
@@ -82,5 +85,6 @@ class MainWindow(QMainWindow):
             self.training_tab.set_config_path(config_path)
             self.train_tab.set_config_path(config_path)
             self.inference_tab.set_config_path(config_path)
+            self.evaluation_tab.set_config_path(config_path)
             self.outlier_tab.set_config_path(config_path)
             self.freezing_tab.set_config_path(config_path)

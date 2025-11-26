@@ -1,15 +1,16 @@
 """Tab widgets"""
 
 from .clean_video_tab import CleanVideoTab
-from .project_tab import ProjectTab
+from .evaluation_tab import EvaluationTab
 from .extract_tab import ExtractTab
-from .outlier_tab import OutlierTab
-from .label_tab import LabelTab
-from .training_tab import TrainingTab
-from .train_tab import TrainTab
-from .inference_tab import InferenceTab
-from .system_info_tab import SystemInfoTab
 from .freezing_tab import FreezingTab
+from .inference_tab import InferenceTab
+from .label_tab import LabelTab
+from .outlier_tab import OutlierTab
+from .project_tab import ProjectTab
+from .system_info_tab import SystemInfoTab
+from .train_tab import TrainTab
+from .training_tab import TrainingTab
 
 __all__ = [
     "CleanVideoTab",
@@ -20,6 +21,7 @@ __all__ = [
     "TrainingTab",
     "TrainTab",
     "InferenceTab",
+    "EvaluationTab",
     "OutlierTab",
     "FreezingTab",
     "SystemInfoTab",
