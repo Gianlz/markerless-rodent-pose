@@ -13,6 +13,7 @@ from .tabs import (
     InferenceTab,
     SystemInfoTab,
 )
+from .widgets import ResponsiveTabPage
 
 
 class MainWindow(QMainWindow):
@@ -24,7 +25,8 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle("DeepLabCut Frame Extractor")
-        self.setMinimumSize(900, 700)  # Slightly larger for modern spacing
+        self.resize(1280, 860)
+        self.setMinimumSize(720, 540)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -37,6 +39,8 @@ class MainWindow(QMainWindow):
         # Create tabs
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)  # cleaner look on some platforms
+        self.tabs.setUsesScrollButtons(True)
+        self.tabs.tabBar().setExpanding(False)
 
         # Initialize tabs
         self.project_tab = ProjectTab()
@@ -50,14 +54,14 @@ class MainWindow(QMainWindow):
         self.system_info_tab = SystemInfoTab()
 
         # Add tabs in logical order
-        self.tabs.addTab(self.project_tab, "Project Manager")
-        self.tabs.addTab(self.clean_video_tab, "Clean Videos")
-        self.tabs.addTab(self.extract_tab, "Extract Frames")
-        self.tabs.addTab(self.label_tab, "Label Frames")
-        self.tabs.addTab(self.training_tab, "Create Dataset")
-        self.tabs.addTab(self.train_tab, "Train Network")
-        self.tabs.addTab(self.inference_tab, "Analyze Videos")
-        self.tabs.addTab(self.outlier_tab, "Extract Outliers")
+        self.tabs.addTab(ResponsiveTabPage(self.project_tab, 820), "Project Manager")
+        self.tabs.addTab(ResponsiveTabPage(self.clean_video_tab, 980), "Clean Videos")
+        self.tabs.addTab(ResponsiveTabPage(self.extract_tab, 760), "Extract Frames")
+        self.tabs.addTab(ResponsiveTabPage(self.label_tab, 940), "Label Frames")
+        self.tabs.addTab(ResponsiveTabPage(self.training_tab, 780), "Create Dataset")
+        self.tabs.addTab(ResponsiveTabPage(self.train_tab, 780), "Train Network")
+        self.tabs.addTab(ResponsiveTabPage(self.inference_tab, 920), "Analyze Videos")
+        self.tabs.addTab(ResponsiveTabPage(self.outlier_tab, 820), "Extract Outliers")
         self.tabs.addTab(self.system_info_tab, "System Info")
 
         # Connect project creation to auto-fill config

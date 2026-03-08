@@ -42,7 +42,6 @@ class ProjectCreationWorker(QThread):
             self.error.emit(str(e))
 
 
-
 class ProjectTab(QWidget):
     """Project manager tab widget"""
 
@@ -78,7 +77,7 @@ class ProjectTab(QWidget):
 
         dir_btn = QPushButton("Browse")
         dir_btn.setObjectName(SECONDARY_BUTTON)
-        dir_btn.setFixedWidth(100)
+        dir_btn.setMinimumWidth(100)
         dir_btn.clicked.connect(self.browse_working_dir)
 
         dir_layout.addWidget(self.working_dir_input)
