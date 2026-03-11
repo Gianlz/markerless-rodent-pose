@@ -12,6 +12,7 @@ from .tabs import (
     TrainTab,
     InferenceTab,
     SystemInfoTab,
+    TestsTab,
 )
 from .widgets import ResponsiveTabPage
 
@@ -53,6 +54,7 @@ class MainWindow(QMainWindow):
         self.train_tab = TrainTab()
         self.inference_tab = InferenceTab()
         self.outlier_tab = OutlierTab()
+        self.tests_tab = TestsTab()
         self.system_info_tab = SystemInfoTab()
 
         # Tabs that own a config_input
@@ -63,6 +65,7 @@ class MainWindow(QMainWindow):
             self.train_tab,
             self.inference_tab,
             self.outlier_tab,
+            self.tests_tab,
         ]
 
         # Connect each tab's config_input.textChanged → shared sync
@@ -81,6 +84,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(ResponsiveTabPage(self.train_tab, 780), "Train Network")
         self.tabs.addTab(ResponsiveTabPage(self.inference_tab, 920), "Analyze Videos")
         self.tabs.addTab(ResponsiveTabPage(self.outlier_tab, 820), "Extract Outliers")
+        self.tabs.addTab(ResponsiveTabPage(self.tests_tab, 820), "Custom Tests")
         self.tabs.addTab(self.system_info_tab, "System Info")
 
         # Sync config when switching tabs (handles project creation)

@@ -9,6 +9,7 @@ from .training_tab import TrainingTab
 from .train_tab import TrainTab
 from .inference_tab import InferenceTab
 from .system_info_tab import SystemInfoTab
+from .tests_tab import TestsTab
 
 __all__ = [
     "CleanVideoTab",
@@ -20,4 +21,5 @@ __all__ = [
     "TrainTab",
     "InferenceTab",
     "SystemInfoTab",
+    "TestsTab",
 ]
