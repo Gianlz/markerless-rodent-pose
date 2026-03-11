@@ -8,8 +8,9 @@ import cv2
 import deeplabcut
 import numpy as np
 import yaml
+from ..utils.logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 try:
     import faiss

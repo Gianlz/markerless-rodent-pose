@@ -5,8 +5,9 @@ from typing import Optional
 import logging
 import deeplabcut
 import yaml
+from ..utils.logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 
 class InferenceManager:
@@ -34,6 +35,7 @@ class InferenceManager:
             save_as_csv: Save results as CSV
             destfolder: Destination folder for results
         """
+        logger.info(f"Analyzing {len(videos)} video(s) on GPU {gputouse}...")
         deeplabcut.analyze_videos(
             config,
             videos,

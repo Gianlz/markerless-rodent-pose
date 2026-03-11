@@ -5,8 +5,9 @@ import logging
 import json
 import deeplabcut
 import yaml
+from ..utils.logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 
 class TrainingManager:

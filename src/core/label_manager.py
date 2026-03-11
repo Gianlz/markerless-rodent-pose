@@ -5,6 +5,9 @@ from typing import Optional
 
 import deeplabcut
 import yaml
+from ..utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class LabelManager:
@@ -19,8 +22,10 @@ class LabelManager:
             video: Name of the video folder to label (inside labeled-data)
         """
         if video:
+            logger.info(f"Launching labeling GUI for video: {video}")
             deeplabcut.label_frames(config, image_folder=video)
         else:
+            logger.info("Launching labeling GUI for all extracted videos")
             deeplabcut.label_frames(config)
 
     def get_videos(self, config: str) -> list[str]:
@@ -58,6 +63,7 @@ class LabelManager:
 
             with open(config, "w") as f:
                 yaml.dump(cfg, f, default_flow_style=False)
+            logger.info(f"Added bodypart: {bodypart}")
 
     def remove_bodypart(self, config: str, bodypart: str) -> None:
         """Remove a bodypart from config"""

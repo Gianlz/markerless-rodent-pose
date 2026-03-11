@@ -7,6 +7,9 @@ import numpy as np
 import pandas as pd
 import deeplabcut
 import cv2
+from ..utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 class TestsManager:
     """Manager for custom user tests post-inference"""
@@ -29,8 +32,10 @@ class TestsManager:
         """Run DLC analysis on the video if the .h5 file doesn't exist"""
         h5_file = self.get_analyzed_data_file(config_path, video_path)
         if h5_file and os.path.exists(h5_file):
+            logger.info(f"Found existing analysis file: {h5_file}")
             return h5_file
             
+        logger.info(f"Running DLC analysis on {video_path}...")
         deeplabcut.analyze_videos(
             config_path, 
             [video_path], 
@@ -41,8 +46,10 @@ class TestsManager:
         
         h5_file = self.get_analyzed_data_file(config_path, video_path)
         if not h5_file:
+            logger.error(f"Failed to generate analysis file for {video_path}")
             raise RuntimeError("Failed to generate analysis .h5 file. Check DLC logs.")
             
+        logger.info(f"Analysis completed: {h5_file}")
         return h5_file
 
     def get_video_info(self, video_path: str) -> tuple[float, int, int]:
@@ -133,5 +140,6 @@ class TestsManager:
         df_results = pd.DataFrame([results])
         df_results.to_excel(excel_path, index=False)
         
+        logger.info(f"Saved test results to {excel_path}")
         return results
 
