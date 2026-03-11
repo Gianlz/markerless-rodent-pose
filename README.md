@@ -196,17 +196,29 @@ skeleton = [
 
 ## Testing
 
-Run the end-to-end test suite:
+The project uses **pytest** with **Hypothesis** for property-based testing (124 tests).
 
 ```bash
-# All tests
-uv run pytest tests/e2e -v
+# Run all tests
+uv run pytest
 
-# Specific test
-uv run pytest tests/e2e/test_complete_workflow.py -v
+# Run with coverage report
+uv run pytest --cov --cov-report=term-missing
 
-# With coverage
-uv run pytest tests/e2e --cov=src --cov-report=html
+# Run a specific test file
+uv run pytest tests/core/test_label_manager.py -v
+
+# Run a specific test class
+uv run pytest tests/core/test_label_manager.py::TestLabelManagerBodyparts -v
+
+# Run a single test
+uv run pytest tests/core/test_label_manager.py::TestLabelManagerBodyparts::test_add_bodypart_appends -v
+```
+
+### Dev dependencies
+
+```bash
+uv sync --group dev
 ```
 
 ## Troubleshooting

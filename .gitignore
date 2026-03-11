@@ -12,5 +12,6 @@ wheels/
 # Ide
 .cursor/
 .kiro
-tests
 .pytest_cache
+.coverage
+.hypothesis/
