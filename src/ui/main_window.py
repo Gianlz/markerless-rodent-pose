@@ -21,6 +21,8 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self._session_config_path: str = ""
+        self._syncing = False
         self.init_ui()
 
     def init_ui(self):
@@ -53,6 +55,23 @@ class MainWindow(QMainWindow):
         self.outlier_tab = OutlierTab()
         self.system_info_tab = SystemInfoTab()
 
+        # Tabs that own a config_input
+        self._config_tabs = [
+            self.extract_tab,
+            self.label_tab,
+            self.training_tab,
+            self.train_tab,
+            self.inference_tab,
+            self.outlier_tab,
+        ]
+
+        # Connect each tab's config_input.textChanged → shared sync
+        for tab in self._config_tabs:
+            tab.config_input.textChanged.connect(self._on_config_input_changed)
+
+        # Connect project creation to auto-fill config
+        self.project_tab.config_created_signal = None  # handled below
+
         # Add tabs in logical order
         self.tabs.addTab(ResponsiveTabPage(self.project_tab, 820), "Project Manager")
         self.tabs.addTab(ResponsiveTabPage(self.clean_video_tab, 980), "Clean Videos")
@@ -64,8 +83,8 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(ResponsiveTabPage(self.outlier_tab, 820), "Extract Outliers")
         self.tabs.addTab(self.system_info_tab, "System Info")
 
-        # Connect project creation to auto-fill config
-        self.tabs.currentChanged.connect(self.on_tab_changed)
+        # Sync config when switching tabs (handles project creation)
+        self.tabs.currentChanged.connect(self._on_tab_changed)
 
         layout.addWidget(self.tabs)
 
@@ -74,13 +93,39 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
 
-    def on_tab_changed(self, index: int):
-        """Handle tab change to sync config paths"""
-        config_path = self.project_tab.get_config_path()
-        if config_path:
-            self.extract_tab.set_config_path(config_path)
-            self.label_tab.set_config_path(config_path)
-            self.training_tab.set_config_path(config_path)
-            self.train_tab.set_config_path(config_path)
-            self.inference_tab.set_config_path(config_path)
-            self.outlier_tab.set_config_path(config_path)
+    # ------------------------------------------------------------------
+    # Config path synchronization
+    # ------------------------------------------------------------------
+
+    def _broadcast_config(self, path: str) -> None:
+        """Push *path* into every config tab, guarded against recursion."""
+        if self._syncing:
+            return
+        self._syncing = True
+        try:
+            self._session_config_path = path
+            for tab in self._config_tabs:
+                if tab.config_input.text() != path:
+                    tab.set_config_path(path)
+        finally:
+            self._syncing = False
+
+    def _on_config_input_changed(self, text: str) -> None:
+        """Called whenever *any* tab's config_input text changes."""
+        if self._syncing:
+            return
+        # Only broadcast non-empty, valid-looking paths
+        if text and text.endswith((".yaml", ".yml")):
+            self._broadcast_config(text)
+
+    def _on_tab_changed(self, _index: int) -> None:
+        """Sync config when the user switches tabs."""
+        # 1. If the project tab just created a config, adopt it
+        project_config = self.project_tab.get_config_path()
+        if project_config and project_config != self._session_config_path:
+            self._broadcast_config(project_config)
+            return
+
+        # 2. Otherwise re-apply the session config to the newly-visible tab
+        if self._session_config_path:
+            self._broadcast_config(self._session_config_path)
