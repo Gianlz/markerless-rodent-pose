@@ -63,36 +63,51 @@ class TestsManager:
         cap.release()
         return fps, w, h
         
-    def calculate_box_sides_time(self, h5_file: str, line_x: int, fps: float) -> dict:
+    def calculate_box_sides_time(self, h5_file: str, video_path: str, line_x: int, fps: float) -> dict:
         """
         Calculate time spent in Side Left (A) vs Side Right (B) based on vertical line_x.
         State changes only when ALL valid body parts cross to the other side.
+        Generates an overlaid video and an Excel report.
         """
         df = pd.read_hdf(h5_file)
         
-        # DataFrame MultiIndex structure: (scorer, bodypart, coords)
         scorer = df.columns.levels[0][0]
         bodyparts = df.columns.levels[1]
         
         total_frames = len(df)
         
-        current_side = None # 'Left' or 'Right'
+        current_side = None
         frames_left = 0
         frames_right = 0
         
-        # Iterate over frames
-        # We can optimize this using Pandas/Numpy if it's too slow in Python loops,
-        # but for typical video lengths (30 mins at 30 fps = 54k frames), a loop is okay.
+        test_dir = Path(h5_file).parent / "tests_results"
+        test_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Extract X coordinates and likelihoods as numpy arrays for speed
-        x_data = df.xs('x', level='coords', axis=1)[scorer].values  # shape: (frames, bodyparts)
-        like_data = df.xs('likelihood', level='coords', axis=1)[scorer].values # shape: (frames, bodyparts)
+        excel_path = test_dir / f"test-{timestamp}.xlsx"
+        out_video_path = test_dir / f"test-{timestamp}.mp4"
+        
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise RuntimeError(f"Could not open video {video_path}")
+            
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(str(out_video_path), fourcc, fps, (w, h))
+        
+        x_data = df.xs('x', level='coords', axis=1)[scorer].values
+        like_data = df.xs('likelihood', level='coords', axis=1)[scorer].values
         
         for i in range(total_frames):
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
             frame_x = x_data[i]
             frame_like = like_data[i]
             
-            # Mask of valid parts
             valid_mask = (frame_like > 0.6) & (~np.isnan(frame_x))
             valid_x = frame_x[valid_mask]
             
@@ -103,10 +118,8 @@ class TestsManager:
                 parts_on_right = np.sum(valid_x >= line_x)
                 
                 if current_side is None:
-                    # Initially, majority rules
                     current_side = 'Left' if parts_on_left > parts_on_right else 'Right'
                 
-                # Change state only if ALL valid parts cross the line
                 if current_side == 'Left' and parts_on_right == valid_count:
                     current_side = 'Right'
                 elif current_side == 'Right' and parts_on_left == valid_count:
@@ -117,14 +130,27 @@ class TestsManager:
             elif current_side == 'Right':
                 frames_right += 1
                 
+            # Draw overlay
+            cv2.line(frame, (line_x, 0), (line_x, h), (0, 0, 255), 2)
+            
+            time_left_cur = frames_left / fps if fps > 0 else 0
+            time_right_cur = frames_right / fps if fps > 0 else 0
+            
+            cv2.putText(frame, f"Side A (Left): {time_left_cur:.1f}s", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+            cv2.putText(frame, f"Side B (Right): {time_right_cur:.1f}s", (w - 300, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            
+            status_text = f"Side: {current_side}" if current_side else "Side: Unknown"
+            color = (255, 0, 0) if current_side == 'Left' else (0, 255, 0)
+            if current_side is None: color = (255, 255, 255)
+            cv2.putText(frame, status_text, (10, h - 30), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
+            
+            out.write(frame)
+            
+        cap.release()
+        out.release()
+                
         time_left = frames_left / fps if fps > 0 else 0
         time_right = frames_right / fps if fps > 0 else 0
-        
-        # Save results to Excel
-        test_dir = Path(h5_file).parent / "tests_results"
-        test_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        excel_path = test_dir / f"test-{timestamp}.xlsx"
         
         results = {
             "frames_A": frames_left,
@@ -133,13 +159,366 @@ class TestsManager:
             "time_B_sec": time_right,
             "total_frames": total_frames,
             "fps": fps,
-            "saved_file": str(excel_path)
+            "saved_file": str(excel_path),
+            "saved_video": str(out_video_path)
         }
         
-        # Create a simple DataFrame for the Excel file
         df_results = pd.DataFrame([results])
         df_results.to_excel(excel_path, index=False)
         
-        logger.info(f"Saved test results to {excel_path}")
+        logger.info(f"Saved test results to {excel_path} and {out_video_path}")
         return results
 
+    def play_realtime_trace(self, h5_file: str, video_path: str, trail_length: int = 60, params: dict = None):
+        """Generator that yields processed frames showing real-time tracker trails."""
+        import collections
+        import matplotlib.cm as cm
+        
+        df = pd.read_hdf(h5_file)
+        scorer = df.columns.levels[0][0]
+        bodyparts = df.columns.levels[1]
+        
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            logger.error(f"Could not open video for realtime trace: {video_path}")
+            raise RuntimeError(f"Could not open video: {video_path}")
+            
+        trails = {bp: collections.deque(maxlen=trail_length) for bp in bodyparts}
+        
+        # Determine unique colors for each body part
+        colors_cm = cm.rainbow(np.linspace(0, 1, len(bodyparts)))
+        colors = [(int(c[2]*255), int(c[1]*255), int(c[0]*255)) for c in colors_cm] # BGR
+        
+        logger.info(f"Starting realtime trace playback for {video_path}")
+        frame_idx = 0
+        total_frames = len(df)
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret or frame_idx >= total_frames:
+                break
+                
+            # Extract pandas row for this frame
+            frame_data = df.iloc[frame_idx][scorer]
+            
+            for bp_idx, bp in enumerate(bodyparts):
+                x = frame_data[bp]['x']
+                y = frame_data[bp]['y']
+                likelihood = frame_data[bp]['likelihood']
+                
+                if type(likelihood) == pd.Series:
+                    likelihood = likelihood.values[0]
+                    
+                pcutoff = params.get('pcutoff', 0.6) if params else 0.6
+                if likelihood > pcutoff and not np.isnan(x) and not np.isnan(y):
+                    pt = (int(x), int(y))
+                    trails[bp].append(pt)
+                    cv2.circle(frame, pt, 4, colors[bp_idx], -1)
+                else:
+                    # Break the line if tracking is lost
+                    trails[bp].append(None)
+                    
+                # Draw the trail lines
+                track = trails[bp]
+                for i in range(1, len(track)):
+                    if track[i-1] is not None and track[i] is not None:
+                        cv2.line(frame, track[i-1], track[i], colors[bp_idx], 2)
+                        
+            # Yield the frame instead of showing it
+            yield frame
+            
+            frame_idx += 1
+            
+        cap.release()
+        logger.info("Realtime trace playback finished.")
+
+    def play_realtime_detection(self, h5_file: str, video_path: str, params: dict = None):
+        """Generator that yields processed frames showing real-time tracker points."""
+        import matplotlib.cm as cm
+        
+        df = pd.read_hdf(h5_file)
+        scorer = df.columns.levels[0][0]
+        bodyparts = df.columns.levels[1]
+        
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            logger.error(f"Could not open video for realtime detection: {video_path}")
+            raise RuntimeError(f"Could not open video: {video_path}")
+            
+        # Determine unique colors for each body part
+        colors_cm = cm.rainbow(np.linspace(0, 1, len(bodyparts)))
+        colors = [(int(c[2]*255), int(c[1]*255), int(c[0]*255)) for c in colors_cm] # BGR
+        
+        logger.info(f"Starting realtime detection playback for {video_path}")
+        frame_idx = 0
+        total_frames = len(df)
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret or frame_idx >= total_frames:
+                break
+                
+            # Extract pandas row for this frame
+            frame_data = df.iloc[frame_idx][scorer]
+            
+            for bp_idx, bp in enumerate(bodyparts):
+                x = frame_data[bp]['x']
+                y = frame_data[bp]['y']
+                likelihood = frame_data[bp]['likelihood']
+                
+                if type(likelihood) == pd.Series:
+                    likelihood = likelihood.values[0]
+                    
+                pcutoff = params.get('pcutoff', 0.6) if params else 0.6
+                if likelihood > pcutoff and not np.isnan(x) and not np.isnan(y):
+                    pt = (int(x), int(y))
+                    # Draw a solid point
+                    cv2.circle(frame, pt, 6, colors[bp_idx], -1)
+                    # Add a small label next to it so it's easier to verify what is what
+                    cv2.putText(frame, bp, (pt[0] + 8, pt[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[bp_idx], 1, cv2.LINE_AA)
+                        
+            # Yield the frame instead of showing it
+            yield frame
+            
+            frame_idx += 1
+            
+        cap.release()
+        logger.info("Realtime detection playback finished.")
+
+    def calculate_grid_test(self, h5_file: str, video_path: str, roi: tuple[int, int, int], fps: float, pcutoff: float = 0.6) -> dict:
+        """
+        Calculate entries and time in a 3x3 grid within a square ROI.
+        roi: (x, y, size)
+        """
+        import pandas as pd
+        import numpy as np
+        import cv2
+        import matplotlib.pyplot as plt
+        from datetime import datetime
+        
+        df = pd.read_hdf(h5_file)
+        scorer = df.columns.levels[0][0]
+        
+        rx, ry, rsize = roi
+        cell_size = rsize / 3.0
+        
+        paws = ['fr_paw', 'fl_paw', 'br_paw', 'bl_paw']
+        all_labels = ['head', 'nose', 'r_ear', 'l_ear', 'fr_paw', 'fl_paw', 'br_paw', 'bl_paw', 'tail']
+        
+        available_bps = list(df.columns.levels[1])
+        valid_paws = [p for p in paws if p in available_bps]
+        valid_all = [p for p in all_labels if p in available_bps]
+        
+        # fallback to the first 4 body parts if expected paws aren't found
+        if not valid_paws:
+            valid_paws = available_bps[:4] if len(available_bps) >= 4 else available_bps
+            
+        if not valid_all:
+            valid_all = available_bps
+            
+        test_dir = Path(h5_file).parent / "tests_results"
+        test_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        excel_path = test_dir / f"grid_test_{timestamp}.xlsx"
+        traj_img_path = str(test_dir / f"trajectory_{timestamp}.png")
+        heatmap_img_path = str(test_dir / f"heatmap_{timestamp}.png")
+        out_video_path = str(test_dir / f"grid_test_{timestamp}.mp4")
+        
+        current_square = None
+        entries_per_square = {i: 0 for i in range(1, 10)}
+        frames_per_square = {i: 0 for i in range(1, 10)}
+        total_entries = 0
+        
+        trajectory_x = []
+        trajectory_y = []
+        
+        heatmap_x = []
+        heatmap_y = []
+        
+        cap = cv2.VideoCapture(video_path)
+        if cap.isOpened():
+            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        else:
+            w, h = 640, 480
+            raise RuntimeError(f"Could not open video: {video_path}")
+            
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(out_video_path, fourcc, fps, (w, h))
+
+        def get_square(cx, cy):
+            if not (rx <= cx <= rx + rsize and ry <= cy <= ry + rsize):
+                return None
+            col = int((cx - rx) // cell_size)
+            row = int((cy - ry) // cell_size)
+            # clamp to grid edges just in case of rounding errors
+            col = max(0, min(2, col))
+            row = max(0, min(2, row))
+            return row * 3 + col + 1
+            
+        for i in range(len(df)):
+            frame_data = df.iloc[i][scorer]
+            
+            paws_in_squares = []
+            for p in valid_paws:
+                x = frame_data[p]['x']
+                y = frame_data[p]['y']
+                like = frame_data[p]['likelihood']
+                if type(like) == pd.Series: like = like.values[0]
+                
+                if like > pcutoff and not np.isnan(x) and not np.isnan(y):
+                    sq = get_square(x, y)
+                    paws_in_squares.append(sq)
+                    
+            if len(paws_in_squares) == len(valid_paws) and len(paws_in_squares) > 0:
+                if all(sq == paws_in_squares[0] for sq in paws_in_squares) and paws_in_squares[0] is not None:
+                    sq = paws_in_squares[0]
+                    if current_square != sq:
+                        current_square = sq
+                        entries_per_square[sq] += 1
+                        total_entries += 1
+                        
+            if current_square is not None:
+                frames_per_square[current_square] += 1
+                
+            cx_list = []
+            cy_list = []
+            for p in valid_all:
+                x = frame_data[p]['x']
+                y = frame_data[p]['y']
+                like = frame_data[p]['likelihood']
+                if type(like) == pd.Series: like = like.values[0]
+                
+                if like > pcutoff and not np.isnan(x) and not np.isnan(y):
+                    cx_list.append(x)
+                    cy_list.append(y)
+                    heatmap_x.append(x)
+                    heatmap_y.append(y)
+            
+            if cx_list:
+                trajectory_x.append(np.mean(cx_list))
+                trajectory_y.append(np.mean(cy_list))
+                
+            # Read and annotate frame for video
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
+            # Draw ROI box
+            cv2.rectangle(frame, (int(rx), int(ry)), (int(rx + rsize), int(ry + rsize)), (0, 0, 255), 2)
+            
+            # Draw grid lines
+            for step in range(1, 3):
+                line_pos_x = int(rx + step * cell_size)
+                cv2.line(frame, (line_pos_x, int(ry)), (line_pos_x, int(ry + rsize)), (0, 255, 0), 1)
+                line_pos_y = int(ry + step * cell_size)
+                cv2.line(frame, (int(rx), line_pos_y), (int(rx + rsize), line_pos_y), (0, 255, 0), 1)
+                
+            # Draw path
+            if len(trajectory_x) > 1:
+                for pt_idx in range(1, len(trajectory_x)):
+                    pt1 = (int(trajectory_x[pt_idx - 1]), int(trajectory_y[pt_idx - 1]))
+                    pt2 = (int(trajectory_x[pt_idx]), int(trajectory_y[pt_idx]))
+                    cv2.line(frame, pt1, pt2, (255, 0, 0), 2)
+                    
+            status_text = f"Square: {current_square}" if current_square else "Square: None"
+            cv2.putText(frame, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            cv2.putText(frame, f"Entries: {total_entries}", (w - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            
+            out.write(frame)
+            
+        cap.release()
+        out.release()
+                
+        # Generate Locomotor Trajectory Plot
+        plt.figure(figsize=(10, 8))
+        if trajectory_x and trajectory_y:
+            plt.plot(trajectory_x, trajectory_y, color='blue', alpha=0.6, linewidth=1)
+        ax = plt.gca()
+        ax.set_aspect('equal')
+        ax.add_patch(plt.Rectangle((rx, ry), rsize, rsize, fill=False, edgecolor='red', linewidth=2))
+        for step in range(1, 3):
+            x_line = rx + step * cell_size
+            plt.plot([x_line, x_line], [ry, ry + rsize], color='red', linestyle='--', alpha=0.5)
+            y_line = ry + step * cell_size
+            plt.plot([rx, rx + rsize], [y_line, y_line], color='red', linestyle='--', alpha=0.5)
+            
+        plt.xlim(rx, rx + rsize)
+        plt.ylim(ry + rsize, ry) # Invert Y for image coordinates
+        plt.title('Locomotor Trajectory')
+        plt.savefig(traj_img_path, bbox_inches='tight')
+        plt.close()
+        
+        # Spatial Occupancy Heat Map
+        plt.figure(figsize=(8, 8))
+        if heatmap_x and heatmap_y:
+            import scipy.ndimage as ndimage
+            
+            # Filter points to only include those inside the ROI bounds
+            heatmap_roi_pts = [(x, y) for x, y in zip(heatmap_x, heatmap_y) if rx <= x <= rx + rsize and ry <= y <= ry + rsize]
+            
+            if heatmap_roi_pts:
+                hx, hy = zip(*heatmap_roi_pts)
+                
+                # Create detailed 2D histogram over the ROI
+                bins = max(int(rsize / 5), 10) 
+                H, xedges, yedges = np.histogram2d(hx, hy, bins=bins, range=[[rx, rx+rsize], [ry, ry+rsize]])
+                
+                # Transpose for visual layout compatibility
+                H = H.T
+                
+                # Smooth heavily with a Gaussian filter to replicate KDE
+                sigma = max(1.0, bins / 15.0)
+                H_smoothed = ndimage.gaussian_filter(H, sigma=sigma)
+                
+                plt.imshow(H_smoothed, interpolation='bicubic', cmap='jet', extent=[rx, rx+rsize, ry+rsize, ry], aspect='auto')
+                
+        ax = plt.gca()
+        ax.set_aspect('equal')
+        plt.xlim(rx, rx + rsize)
+        plt.ylim(ry + rsize, ry)
+        plt.title('Open Field', fontsize=24, fontweight='bold', pad=20)
+        plt.axis('off')
+        plt.savefig(heatmap_img_path, bbox_inches='tight', pad_inches=0.1)
+        plt.close()
+        
+        time_per_square = {sq: f / fps if fps > 0 else 0 for sq, f in frames_per_square.items()}
+        
+        results = {
+            "total_entries": total_entries,
+            "entries_per_square": entries_per_square,
+            "frames_per_square": frames_per_square,
+            "time_per_square": time_per_square,
+            "saved_file": str(excel_path),
+            "saved_video": out_video_path,
+            "trajectory_image": traj_img_path,
+            "heatmap_image": heatmap_img_path,
+            "roi": roi
+        }
+        
+        # Save exact Excel sheets
+        data = []
+        for sq in range(1, 10):
+            data.append({
+                "Square": sq,
+                "Entries": entries_per_square[sq],
+                "Frames": frames_per_square[sq],
+                "Time (s)": time_per_square[sq]
+            })
+        df_results = pd.DataFrame(data)
+        
+        summary_data = [{
+            "Total Entries": total_entries, 
+            "Total Frames": sum(frames_per_square.values()), 
+            "Total Time (s)": sum(time_per_square.values())
+        }]
+        df_summary = pd.DataFrame(summary_data)
+        
+        # Save Excel with multiple sheets
+        with pd.ExcelWriter(excel_path) as writer:
+            df_summary.to_excel(writer, sheet_name="Summary", index=False)
+            df_results.to_excel(writer, sheet_name="Square Details", index=False)
+            
+        logger.info(f"Saved grid test results to {excel_path}, {traj_img_path}, {heatmap_img_path}")
+        return results
