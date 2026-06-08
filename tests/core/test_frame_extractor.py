@@ -1,10 +1,9 @@
 """Tests for src.core.frame_extractor – frame extraction logic."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 import pytest
-import yaml
 import numpy as np
 from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
@@ -47,9 +46,7 @@ class TestFrameExtractorDispatch:
     """Test mode/algo dispatch without heavy I/O."""
 
     @patch("src.core.frame_extractor.deeplabcut")
-    def test_manual_mode_delegates_to_dlc(
-        self, mock_dlc: MagicMock
-    ) -> None:
+    def test_manual_mode_delegates_to_dlc(self, mock_dlc: MagicMock) -> None:
         fe = FrameExtractor()
         fe.extract_frames("cfg.yaml", mode="manual")
         mock_dlc.extract_frames.assert_called_once_with(
@@ -57,18 +54,14 @@ class TestFrameExtractorDispatch:
         )
 
     @patch.object(FrameExtractor, "_extract_uniform")
-    def test_uniform_algo_calls_private(
-        self, mock_uniform: MagicMock
-    ) -> None:
+    def test_uniform_algo_calls_private(self, mock_uniform: MagicMock) -> None:
         fe = FrameExtractor()
         fe.extract_frames("cfg.yaml", mode="automatic", algo="uniform", num_frames=10)
         mock_uniform.assert_called_once_with("cfg.yaml", 10, 1)
 
     @patch("src.core.frame_extractor.FAISS_AVAILABLE", True)
     @patch.object(FrameExtractor, "_extract_kmeans_faiss")
-    def test_kmeans_algo_calls_private(
-        self, mock_kmeans: MagicMock
-    ) -> None:
+    def test_kmeans_algo_calls_private(self, mock_kmeans: MagicMock) -> None:
         fe = FrameExtractor()
         fe.extract_frames(
             "cfg.yaml",
@@ -115,9 +108,7 @@ class TestFrameExtractorUniform:
         assert mock_cv2.imwrite.call_count == 5
 
     @patch("src.core.frame_extractor.cv2")
-    def test_skips_unopened_video(
-        self, mock_cv2: MagicMock, tmp_config: Path
-    ) -> None:
+    def test_skips_unopened_video(self, mock_cv2: MagicMock, tmp_config: Path) -> None:
         mock_cap = MagicMock()
         mock_cap.isOpened.return_value = False
         mock_cv2.VideoCapture.return_value = mock_cap
@@ -128,9 +119,7 @@ class TestFrameExtractorUniform:
         mock_cv2.imwrite.assert_not_called()
 
     @patch("src.core.frame_extractor.cv2")
-    def test_handles_read_failure(
-        self, mock_cv2: MagicMock, tmp_config: Path
-    ) -> None:
+    def test_handles_read_failure(self, mock_cv2: MagicMock, tmp_config: Path) -> None:
         mock_cap = MagicMock()
         mock_cap.isOpened.return_value = True
         mock_cap.get.return_value = 100
@@ -148,9 +137,7 @@ class TestFrameExtractorUniform:
         max_examples=10,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
-    def test_num_frames_parameter(
-        self, tmp_config: Path, n: int
-    ) -> None:
+    def test_num_frames_parameter(self, tmp_config: Path, n: int) -> None:
         with patch("src.core.frame_extractor.cv2") as mock_cv2:
             mock_cap = MagicMock()
             mock_cap.isOpened.return_value = True

@@ -2,7 +2,6 @@
 
 from pathlib import Path
 from typing import Optional
-import logging
 import deeplabcut
 import yaml
 from ..utils.logger import setup_logger

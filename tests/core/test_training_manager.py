@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
 from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
@@ -33,8 +32,10 @@ class TestTrainingManagerConfig:
         with patch.object(
             TrainingManager,
             "__init__",
-            lambda self: setattr(self, "config_path", tmp_path / "nope.json")
-            or setattr(self, "models_config", self._load_models_config()),
+            lambda self: (
+                setattr(self, "config_path", tmp_path / "nope.json")
+                or setattr(self, "models_config", self._load_models_config())
+            ),
         ):
             mgr = TrainingManager()
 
@@ -45,8 +46,10 @@ class TestTrainingManagerConfig:
         with patch.object(
             TrainingManager,
             "__init__",
-            lambda self: setattr(self, "config_path", models_json)
-            or setattr(self, "models_config", self._load_models_config()),
+            lambda self: (
+                setattr(self, "config_path", models_json)
+                or setattr(self, "models_config", self._load_models_config())
+            ),
         ):
             mgr = TrainingManager()
 
@@ -56,8 +59,10 @@ class TestTrainingManagerConfig:
         with patch.object(
             TrainingManager,
             "__init__",
-            lambda self: setattr(self, "config_path", models_json)
-            or setattr(self, "models_config", self._load_models_config()),
+            lambda self: (
+                setattr(self, "config_path", models_json)
+                or setattr(self, "models_config", self._load_models_config())
+            ),
         ):
             mgr = TrainingManager()
 
@@ -126,9 +131,7 @@ class TestTrainingManagerMultianimal:
 
         return _TM(models_json)
 
-    def test_single_animal(
-        self, tmp_config: Path, models_json: Path
-    ) -> None:
+    def test_single_animal(self, tmp_config: Path, models_json: Path) -> None:
         mgr = self._make_mgr(models_json)
         assert mgr.is_multianimal_project(str(tmp_config)) is False
 
@@ -170,9 +173,7 @@ class TestTrainingManagerCheckDataset:
         result = mgr.check_training_dataset_exists(str(tmp_config))
         assert result["exists"] is False
 
-    def test_dataset_exists(
-        self, tmp_config: Path, models_json: Path
-    ) -> None:
+    def test_dataset_exists(self, tmp_config: Path, models_json: Path) -> None:
         trainset_dir = (
             tmp_config.parent
             / "training-datasets"
@@ -241,6 +242,7 @@ class TestTrainingManagerCreate:
         n: int,
     ) -> None:
         with patch("src.core.training_manager.deeplabcut") as mock_dlc:
+
             class _TM(TrainingManager):
                 def __init__(self, path: Path) -> None:
                     self.config_path = path

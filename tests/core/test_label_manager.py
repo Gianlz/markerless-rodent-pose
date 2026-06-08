@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-import yaml
 from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 
@@ -138,11 +136,7 @@ class TestLabelManagerSkeleton:
         mgr.add_skeleton_connection(str(tmp_config), "left_ear", "nose")
         skeleton = mgr.get_skeleton(str(tmp_config))
         # Should not duplicate; original is ["nose", "left_ear"]
-        count = sum(
-            1
-            for conn in skeleton
-            if set(conn) == {"nose", "left_ear"}
-        )
+        count = sum(1 for conn in skeleton if set(conn) == {"nose", "left_ear"})
         assert count == 1
 
     def test_remove_skeleton_connection(self, tmp_config: Path) -> None:
@@ -157,9 +151,7 @@ class TestLabelManagerSkeleton:
         skeleton = mgr.get_skeleton(str(tmp_config))
         assert ["nose", "right_ear"] not in skeleton
 
-    def test_remove_nonexistent_connection_is_noop(
-        self, tmp_config: Path
-    ) -> None:
+    def test_remove_nonexistent_connection_is_noop(self, tmp_config: Path) -> None:
         mgr = LabelManager()
         original = mgr.get_skeleton(str(tmp_config))
         mgr.remove_skeleton_connection(str(tmp_config), "left_ear", "tail_base")

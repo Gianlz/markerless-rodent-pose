@@ -35,7 +35,7 @@ class ProjectManager:
         """
         logger.info(f"Creating new DLC project: {project_name}")
         logger.info(f"Working Directory: {working_directory}")
-        
+
         config_path = deeplabcut.create_new_project(
             project_name,
             experimenter,
@@ -46,7 +46,7 @@ class ProjectManager:
         )
 
         logger.info(f"Project created with config at: {config_path}")
-        
+
         # Create additional subfolders
         project_path = Path(config_path).parent
         self._create_project_structure(project_path)

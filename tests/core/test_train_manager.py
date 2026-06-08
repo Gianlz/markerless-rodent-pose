@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
-from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from src.core.train_manager import TrainManager
@@ -37,9 +36,7 @@ class TestTrainManagerShuffles:
         assert mgr.get_available_shuffles(str(tmp_config)) == [1]
 
     def test_discovers_shuffles(self, tmp_config: Path) -> None:
-        iter_dir = (
-            tmp_config.parent / "training-datasets" / "iteration-0"
-        )
+        iter_dir = tmp_config.parent / "training-datasets" / "iteration-0"
         iter_dir.mkdir(parents=True)
         (iter_dir / "UnaugmentedDataSet_testDec1-trainset95shuffle1").mkdir()
         (iter_dir / "UnaugmentedDataSet_testDec1-trainset95shuffle3").mkdir()
@@ -117,9 +114,7 @@ class TestTrainManagerTrain:
     """Mocked calls to deeplabcut.train_network."""
 
     @patch("src.core.train_manager.deeplabcut")
-    def test_train_calls_dlc(
-        self, mock_dlc: MagicMock, tmp_config: Path
-    ) -> None:
+    def test_train_calls_dlc(self, mock_dlc: MagicMock, tmp_config: Path) -> None:
         mgr = TrainManager()
         mgr.train_network(str(tmp_config), maxiters=100)
         mock_dlc.train_network.assert_called_once()

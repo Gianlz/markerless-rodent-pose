@@ -1,10 +1,7 @@
 """Shared fixtures for the test suite."""
 
 import json
-import textwrap
 from pathlib import Path
-from typing import Generator
-from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -13,6 +10,7 @@ import yaml
 # ---------------------------------------------------------------------------
 # Filesystem helpers
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def tmp_config(tmp_path: Path) -> Path:

@@ -1,7 +1,6 @@
 """DeepLabCut training dataset management"""
 
 from pathlib import Path
-import logging
 import json
 import deeplabcut
 import yaml

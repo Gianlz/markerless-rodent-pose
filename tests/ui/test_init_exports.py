@@ -1,7 +1,5 @@
 """Tests for src.ui.styles and src.ui.widgets public API (re-exports)."""
 
-import pytest
-
 
 # ===================================================================
 # styles __init__ re-exports
@@ -13,6 +11,7 @@ class TestStylesInit:
 
     def test_load_stylesheet_importable(self) -> None:
         from src.ui.styles import load_stylesheet
+
         assert callable(load_stylesheet)
 
     def test_all_constants_importable(self) -> None:
@@ -60,6 +59,7 @@ class TestWidgetsInit:
 
     def test_responsive_tab_page_importable(self) -> None:
         from src.ui.widgets import ResponsiveTabPage
+
         assert ResponsiveTabPage is not None
 
     def test_all_list(self) -> None:

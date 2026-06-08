@@ -1,9 +1,7 @@
 """Tests for src.utils.validators – path validation helpers."""
 
-import tempfile
 from pathlib import Path
 
-import pytest
 from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 
@@ -77,9 +75,7 @@ class TestValidateConfigPath:
         max_examples=20,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
-    def test_existing_yaml_accepted(
-        self, tmp_path: Path, ext: str, stem: str
-    ) -> None:
+    def test_existing_yaml_accepted(self, tmp_path: Path, ext: str, stem: str) -> None:
         good_file = tmp_path / f"{stem}{ext}"
         good_file.write_text("x: 1\n")
         valid, msg = validate_config_path(str(good_file))

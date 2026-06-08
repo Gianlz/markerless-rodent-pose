@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import subprocess
 
 import pytest
-from hypothesis import given, settings, assume, HealthCheck
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 
 from src.utils.video_utils import reencode_video, check_video_integrity
@@ -42,9 +42,7 @@ class TestReencodeVideo:
         mock_run.assert_called_once()
 
     @patch("src.utils.video_utils.subprocess.run")
-    def test_custom_output_path(
-        self, mock_run: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_custom_output_path(self, mock_run: MagicMock, tmp_path: Path) -> None:
         input_file = tmp_path / "clip.avi"
         input_file.touch()
         output_file = tmp_path / "output" / "result.mp4"
@@ -73,9 +71,7 @@ class TestReencodeVideo:
 
     @patch(
         "src.utils.video_utils.subprocess.run",
-        side_effect=subprocess.CalledProcessError(
-            1, "ffmpeg", stderr=b"encode error"
-        ),
+        side_effect=subprocess.CalledProcessError(1, "ffmpeg", stderr=b"encode error"),
     )
     def test_ffmpeg_failure_raises_runtime_error(
         self, mock_run: MagicMock, tmp_path: Path
@@ -151,9 +147,7 @@ class TestCheckVideoIntegrity:
     @patch("src.utils.video_utils.subprocess.run")
     def test_single_fps_value(self, mock_run: MagicMock) -> None:
         """When fps is a single number (no denominator '/')."""
-        mock_run.return_value = MagicMock(
-            stdout="25,640,480,60.0,1500", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="25,640,480,60.0,1500", returncode=0)
 
         info = check_video_integrity("/fake/video.avi")
 
@@ -185,9 +179,7 @@ class TestCheckVideoIntegrity:
 
     @patch("src.utils.video_utils.subprocess.run")
     def test_empty_duration_handled(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(
-            stdout="30/1,1920,1080,,3600", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="30/1,1920,1080,,3600", returncode=0)
 
         info = check_video_integrity("/fake/nodur.mp4")
 
@@ -197,9 +189,7 @@ class TestCheckVideoIntegrity:
     @patch("src.utils.video_utils.subprocess.run")
     def test_missing_packets_field(self, mock_run: MagicMock) -> None:
         """When output has exactly 4 fields (no packets count)."""
-        mock_run.return_value = MagicMock(
-            stdout="30/1,1920,1080,60.0", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="30/1,1920,1080,60.0", returncode=0)
 
         info = check_video_integrity("/fake/nopkt.mp4")
 

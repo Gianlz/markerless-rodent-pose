@@ -3,7 +3,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
 from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
@@ -79,9 +78,7 @@ class TestInferenceManagerGetBestSnapshot:
         assert mgr.get_best_snapshot(str(tmp_config)) is None
 
     def test_no_shuffle_folder_returns_none(self, tmp_config: Path) -> None:
-        models_dir = (
-            tmp_config.parent / "dlc-models-pytorch" / "iteration-0"
-        )
+        models_dir = tmp_config.parent / "dlc-models-pytorch" / "iteration-0"
         models_dir.mkdir(parents=True)
         mgr = InferenceManager()
         assert mgr.get_best_snapshot(str(tmp_config)) is None
@@ -147,9 +144,7 @@ class TestInferenceManagerGetBestSnapshot:
         max_examples=5,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
-    def test_shuffle_parameter_respected(
-        self, tmp_config: Path, shuffle: int
-    ) -> None:
+    def test_shuffle_parameter_respected(self, tmp_config: Path, shuffle: int) -> None:
         """Ensure only matching shuffle dirs are considered."""
         iter_dir = tmp_config.parent / "dlc-models-pytorch" / "iteration-0"
         iter_dir.mkdir(parents=True, exist_ok=True)
@@ -179,18 +174,14 @@ class TestInferenceManagerAnalyze:
         mock_dlc.filterpredictions.assert_called_once()
 
     @patch("src.core.inference_manager.deeplabcut")
-    def test_filter_failure_does_not_propagate(
-        self, mock_dlc: MagicMock
-    ) -> None:
+    def test_filter_failure_does_not_propagate(self, mock_dlc: MagicMock) -> None:
         mock_dlc.filterpredictions.side_effect = RuntimeError("oops")
         mgr = InferenceManager()
         # Should not raise
         mgr.analyze_videos("cfg.yaml", ["/v.mp4"])
 
     @patch("src.core.inference_manager.deeplabcut")
-    def test_create_labeled_video_calls_dlc(
-        self, mock_dlc: MagicMock
-    ) -> None:
+    def test_create_labeled_video_calls_dlc(self, mock_dlc: MagicMock) -> None:
         mgr = InferenceManager()
         mgr.create_labeled_video("cfg.yaml", ["/v.mp4"])
         mock_dlc.create_labeled_video.assert_called_once()

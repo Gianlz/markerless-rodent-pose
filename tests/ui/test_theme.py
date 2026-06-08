@@ -3,7 +3,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from src.ui.styles.theme import (
     load_stylesheet,
@@ -76,7 +75,7 @@ class TestLoadStylesheet:
 
         with patch(
             "src.ui.styles.theme.Path.__truediv__",
-        ) as mock_div:
+        ) as _:
             # Bypass the complex path resolution by patching at function level
             pass
 
@@ -89,8 +88,7 @@ class TestLoadStylesheet:
         # Patch the resolved path
         with patch(
             "src.ui.styles.theme.Path",
-        ) as MockPath:
-            mock_file = MockPath.return_value.__truediv__
+        ) as _:
             # Too brittle – use a simpler approach
             pass
 

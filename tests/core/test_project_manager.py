@@ -3,9 +3,8 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
-from hypothesis import given, settings, assume, HealthCheck
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 
 from src.core.project_manager import ProjectManager
@@ -94,9 +93,7 @@ class TestProjectManagerCreate:
         mock_dlc.create_new_project.return_value = fake_config
 
         mgr = ProjectManager()
-        result = mgr.create_project(
-            "TestProj", "Tester", [], str(tmp_path)
-        )
+        result = mgr.create_project("TestProj", "Tester", [], str(tmp_path))
 
         assert result == fake_config
         mock_dlc.create_new_project.assert_called_once()
@@ -124,4 +121,3 @@ class TestProjectManagerCreate:
             call_args = mock_dlc.create_new_project.call_args
             assert call_args[0][0] == name
             assert call_args[0][1] == experimenter
-
